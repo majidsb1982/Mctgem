@@ -22,11 +22,9 @@ function mount() {
   try {
     const root = ReactDOM.createRoot(rootElement);
     root.render(
-      <React.StrictMode>
-        <ErrorBoundary>
-          <App />
-        </ErrorBoundary>
-      </React.StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     );
     window.__mctMounted = true;
     console.log('MCT: React application mounted successfully.');

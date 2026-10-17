@@ -55,14 +55,20 @@ export const App: React.FC = () => {
   }, [state.settings.theme]);
 
   const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
+    try {
+      if (!document.fullscreenElement) {
+        if (typeof document.documentElement.requestFullscreen === 'function') {
+          document.documentElement.requestFullscreen().catch(() => {});
+          setIsFullscreen(true);
+        }
+      } else {
+        if (typeof document.exitFullscreen === 'function') {
+          document.exitFullscreen().catch(() => {});
+        }
+        setIsFullscreen(false);
       }
-      setIsFullscreen(false);
+    } catch {
+      // Mobile Safari doesn't support document.requestFullscreen
     }
   };
 
