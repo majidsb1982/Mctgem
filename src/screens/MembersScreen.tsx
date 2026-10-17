@@ -14,7 +14,8 @@ import {
   Mic,
   Calendar,
   Shield,
-  HelpCircle
+  HelpCircle,
+  Sparkles
 } from 'lucide-react';
 import { AppState, Member, JalaliDate } from '../types';
 import { fmt, toFa } from '../utils/jalali';

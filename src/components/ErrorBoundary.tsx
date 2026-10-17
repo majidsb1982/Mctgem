@@ -1,6 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { resetToDemo } from '../utils/storage';
+import { resetToEmpty } from '../utils/storage';
 
 interface Props {
   children: ReactNode;
@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   private handleReset = () => {
-    resetToDemo();
+    resetToEmpty();
     window.location.reload();
   };
 
