@@ -1,0 +1,9 @@
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.grok/
+tmp/
+*.log
+*.zip
+MCT-v*.zip

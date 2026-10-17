@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="description" content="دستیار گروه درمانی — My-Class-Track">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <title>My-Class-Track</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Tahoma', sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+      -webkit-font-smoothing: antialiased;
+    }
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #020617;
+        color: #f8fafc;
+      }
+    }
+  </style>
+
+  <script>
+    window.__mctMounted = false;
+
+    // Immediately clean up any stale service workers or caches
+    try {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          for (var i = 0; i < regs.length; i++) regs[i].unregister();
+        }).catch(function() {});
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(keys) {
+          keys.forEach(function(k) { caches.delete(k); });
+        }).catch(function() {});
+      }
+    } catch (e) {}
+
+    window.emergencyCleanReset = function() {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch (err) {}
+      window.location.href = window.location.pathname + '?nocache=' + Date.now();
+    };
+
+    window.addEventListener('error', function(e) {
+      console.error('MCT Boot Error:', e);
+      setTimeout(function() {
+        if (!window.__mctMounted) {
+          var root = document.getElementById('root');
+          if (root) {
+            root.innerHTML = '<div style="direction:rtl;padding:32px 20px;text-align:center;font-family:sans-serif;max-width:380px;margin:40px auto;background:#fff;border-radius:24px;box-shadow:0 10px 30px rgba(0,0,0,0.08);border:1px solid #fee2e2;">' +
+              '<div style="font-size:32px;margin-bottom:12px;">⚠️</div>' +
+              '<h3 style="color:#1e293b;margin:0 0 8px;font-size:16px;font-weight:bold;">خطا در شروع برنامه</h3>' +
+              '<p style="color:#64748b;font-size:12px;margin:0 0 18px;line-height:1.6;">' + ((e && e.message) ? e.message : 'خطای بارگذاری اسکریپت در مرورگر') + '</p>' +
+              '<button onclick="window.emergencyCleanReset()" style="width:100%;padding:11px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-weight:bold;font-size:13px;cursor:pointer;">پاک‌سازی حافظه و ورود مجدد</button>' +
+              '</div>';
+          }
+        }
+      }, 300);
+    });
+
+    // If mounting takes longer than 1.5s, provide direct interactive entrance
+    setTimeout(function() {
+      if (!window.__mctMounted) {
+        var box = document.getElementById('boot-rescue-box');
+        if (box) box.style.display = 'block';
+      }
+    }, 1500);
+  </script>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased selection:bg-blue-600 selection:text-white">
+  <div id="root">
+    <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; direction: rtl; text-align: center; padding: 24px;">
+      <div style="width: 58px; height: 58px; border-radius: 20px; background: linear-gradient(135deg, #2563eb, #6366f1); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 900; margin-bottom: 14px; box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4);">
+        M
+      </div>
+      <div style="font-size: 20px; font-weight: 800; color: #1e293b; margin-bottom: 4px;">
+        My-Class-Track
+      </div>
+      <div style="font-size: 13px; font-weight: 600; color: #2563eb; margin-bottom: 16px;">
+        دستیار گروه درمانی
+      </div>
+
+      <div id="boot-rescue-box" style="display: none; margin-top: 16px; padding: 14px 20px; background: #ffffff; border-radius: 18px; border: 1px solid #e2e8f0; max-width: 320px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+        <p style="font-size: 12px; color: #475569; margin: 0 0 10px 0; font-weight: 600;">
+          برای ورود بدون معطلی کلیک کنید:
+        </p>
+        <button onclick="if(window.__mctForceMount){window.__mctForceMount();}else{window.emergencyCleanReset();}" style="width: 100%; background: #2563eb; color: #ffffff; border: none; border-radius: 12px; padding: 10px 16px; font-size: 13px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);">
+          🚀 ورود مستقیم به برنامه
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

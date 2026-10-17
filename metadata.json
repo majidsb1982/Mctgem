@@ -1,0 +1,6 @@
+{
+  "name": "My-Class-Track",
+  "description": "دستیار گروه درمانی — مدیریت حضور و غیاب، شهریه، تکالیف، تایمر پشت در و گزارش حامی با تقویم شمسی",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
