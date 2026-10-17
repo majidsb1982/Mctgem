@@ -36,7 +36,7 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({
   const [copied, setCopied] = useState(false);
 
   const sessionKeys = Array.from(
-    new Set([activeSessionKey, ...Object.keys(state.sessions)])
+    new Set([activeSessionKey, ...Object.keys(state?.sessions || {})])
   ).sort().reverse();
 
   const showReport = (title: string, text: string) => {

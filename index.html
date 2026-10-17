@@ -36,6 +36,15 @@
       padding: 24px;
     }
   </style>
+  <script>
+    try {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          for (var i = 0; i < regs.length; i++) regs[i].unregister();
+        }).catch(function() {});
+      }
+    } catch (e) {}
+  </script>
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased selection:bg-blue-600 selection:text-white">
   <div id="root">
@@ -49,9 +58,20 @@
       <div style="font-size: 12px; font-weight: 600; color: #2563eb;">
         دستیار گروه درمانی
       </div>
+      <div id="boot-reset-action" style="display: none; margin-top: 18px;">
+        <button onclick="try{localStorage.clear();sessionStorage.clear();}catch(e){}location.reload();" style="background:#2563eb;color:#fff;border:none;border-radius:12px;padding:9px 18px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(37,99,235,0.3);">
+          🔄 پاکسازی حافظه و شروع مجدد
+        </button>
+      </div>
     </div>
   </div>
 
+  <script>
+    setTimeout(function() {
+      var btn = document.getElementById('boot-reset-action');
+      if (btn) btn.style.display = 'block';
+    }, 2500);
+  </script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

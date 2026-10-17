@@ -218,7 +218,7 @@ export const FeesScreen: React.FC<FeesScreenProps> = ({
                   onChange={(e) => onSelectSession(e.target.value)}
                   className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none"
                 >
-                  {Array.from(new Set([activeSessionKey, ...Object.keys(state.sessions), ...Object.keys(state.fees)])).sort().reverse().map((k) => (
+                  {Array.from(new Set([activeSessionKey, ...Object.keys(state?.sessions || {}), ...Object.keys(state?.fees || {})])).sort().reverse().map((k) => (
                     <option key={k} value={k}>
                       جلسه {fmt(fromKey(k))}
                     </option>

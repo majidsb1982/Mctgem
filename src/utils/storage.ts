@@ -214,14 +214,14 @@ export function getStorageStats(state: AppState) {
 }
 
 export function pruneOldSessions(state: AppState, keepMax: number = 40): { state: AppState; prunedCount: number } {
-  const newState = { ...state, sessions: { ...state.sessions }, fees: { ...state.fees } };
-  const sessionKeys = Object.keys(newState.sessions).sort().reverse();
+  const newState = { ...state, sessions: { ...(state.sessions || {}) }, fees: { ...(state.fees || {}) } };
+  const sessionKeys = Object.keys(newState.sessions || {}).sort().reverse();
   let pruned = 0;
   for (let i = keepMax; i < sessionKeys.length; i++) {
     delete newState.sessions[sessionKeys[i]];
     pruned++;
   }
-  const feeKeys = Object.keys(newState.fees).sort().reverse();
+  const feeKeys = Object.keys(newState.fees || {}).sort().reverse();
   for (let i = keepMax; i < feeKeys.length; i++) {
     delete newState.fees[feeKeys[i]];
   }

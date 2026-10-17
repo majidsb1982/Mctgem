@@ -17,9 +17,13 @@ export const PersianDatePicker: React.FC<Props> = ({
   title = 'انتخاب تاریخ شمسی',
 }) => {
   const currentToday = today();
-  const [selected, setSelected] = useState<JalaliDate>(initialDate || currentToday);
-  const [year, setYear] = useState<number>(selected.jy);
-  const [month, setMonth] = useState<number>(selected.jm);
+  const safeInitial =
+    initialDate && typeof initialDate.jy === 'number' && typeof initialDate.jm === 'number' && typeof initialDate.jd === 'number'
+      ? initialDate
+      : currentToday;
+  const [selected, setSelected] = useState<JalaliDate>(safeInitial);
+  const [year, setYear] = useState<number>(safeInitial.jy);
+  const [month, setMonth] = useState<number>(safeInitial.jm);
 
   const monthLength = mLen(year, month);
   const firstDayDow = dow({ jy: year, jm: month, jd: 1 });
