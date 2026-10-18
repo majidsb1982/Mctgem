@@ -7,3 +7,6 @@ tmp/
 *.log
 *.zip
 MCT-v*.zip
+node_modules/
+dist/
+*.local
