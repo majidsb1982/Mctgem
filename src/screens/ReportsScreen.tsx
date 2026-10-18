@@ -5,10 +5,10 @@ import {
   Check,
   PhoneCall,
   DoorOpen,
-  DollarSign,
+  Wallet,
   HeartHandshake,
   Calendar,
-  X
+  FileText,
 } from 'lucide-react';
 import { AppState } from '../types';
 import {
@@ -16,9 +16,10 @@ import {
   getFeeReportText,
   getHumanHamiSummary,
   copyToClipboard,
-  shareText
+  shareText,
 } from '../utils/reports';
 import { fmt, fromKey } from '../utils/jalali';
+import { Button, Card, CardHeader, ListRow, Select, Sheet } from '../components/ui';
 
 interface ReportsScreenProps {
   state: AppState;
@@ -37,7 +38,9 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({
 
   const sessionKeys = Array.from(
     new Set([activeSessionKey, ...Object.keys(state?.sessions || {})])
-  ).sort().reverse();
+  )
+    .sort()
+    .reverse();
 
   const showReport = (title: string, text: string) => {
     setModalTitle(title);
@@ -55,147 +58,113 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({
 
   const tiles = [
     {
-      title: 'گزارش نوبت ۱ (تماس‌های قبلی)',
-      desc: 'فهرست حاضرین، تأخیرها، غایبین و موارد نیازمند هماهنگی قبل از کلاس',
+      title: 'گزارش نوبت ۱',
+      desc: 'حاضرین، تأخیرها، غایبین و موارد نیازمند هماهنگی',
       icon: PhoneCall,
-      color: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400',
+      tone: 'accent' as const,
       action: () =>
         showReport('گزارش نوبت ۱ (تماس‌های قبلی)', getRoundReportText(state, activeSessionKey, 1, true)),
     },
     {
-      title: 'گزارش نوبت ۲ (پشت در کلاس)',
-      desc: 'فهرست حضور نهایی، اعضایی که رسیده‌اند و وضعیت ورود به کلاس',
+      title: 'گزارش نوبت ۲',
+      desc: 'حضور نهایی و وضعیت ورود اعضا به کلاس',
       icon: DoorOpen,
-      color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
+      tone: 'success' as const,
       action: () =>
         showReport('گزارش نوبت ۲ (پشت در کلاس)', getRoundReportText(state, activeSessionKey, 2, true)),
     },
     {
-      title: 'گزارش وضعیت شهریه',
-      desc: 'آمار واریزهای انجام‌شده، قول داده‌ها و موارد پیگیری نشده',
-      icon: DollarSign,
-      color: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
-      action: () =>
-        showReport('گزارش شهریه جلسه', getFeeReportText(state, activeSessionKey)),
+      title: 'گزارش شهریه',
+      desc: 'آمار واریزها، قول‌ها و موارد پیگیری‌نشده',
+      icon: Wallet,
+      tone: 'warn' as const,
+      action: () => showReport('گزارش شهریهٔ جلسه', getFeeReportText(state, activeSessionKey)),
     },
     {
-      title: 'خلاصه انسانی و حمایتی',
-      desc: 'گزارش با لحن گرم و همدلانه ویژه حامیان و درمانگر گروه',
+      title: 'خلاصهٔ حمایتی',
+      desc: 'متن گرم و همدلانه برای حامیان و درمانگر',
       icon: HeartHandshake,
-      color: 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400',
-      action: () =>
-        showReport('خلاصه حمایتی برای حامی‌ها', getHumanHamiSummary(state, activeSessionKey)),
+      tone: 'danger' as const,
+      action: () => showReport('خلاصهٔ حمایتی برای حامی‌ها', getHumanHamiSummary(state, activeSessionKey)),
     },
   ];
 
   return (
-    <div className="space-y-4 pb-12 animate-fade-in" dir="rtl">
-      {/* Hero Banner */}
-      <div className="rounded-3xl bg-gradient-to-br from-purple-600 to-indigo-700 text-white p-6 shadow-xl shadow-purple-600/20">
-        <h2 className="text-lg font-black mb-1">📡 کانال‌های گزارش و ارتباطات</h2>
-        <p className="text-xs opacity-90 leading-relaxed">
-          تمامی گزارش‌های کلاسی برای ارسال به حامی‌ها و درمانگر با حذف خودکار یادداشت‌های محرمانه جهت رعایت کامل حریم خصوصی اعضا.
-        </p>
+    <div className="space-y-4 pb-12">
+      <Card>
+        <CardHeader
+          icon={<FileText size={17} />}
+          title="خروجی گزارش"
+          subtitle="یادداشت‌های محرمانه به‌صورت خودکار حذف می‌شوند."
+          className="mb-4"
+        />
 
-        {/* Session selector */}
         {onSelectSession && (
-          <div className="mt-4 pt-3 border-t border-white/20 flex items-center justify-between gap-2">
-            <span className="text-xs font-bold text-white/90 flex items-center gap-1.5">
-              <Calendar size={14} />
-              <span>جلسه گزارش:</span>
-            </span>
-            <select
+          <div className="flex items-center gap-2">
+            <Calendar size={15} className="text-muted shrink-0" />
+            <span className="text-xs font-bold text-muted shrink-0">جلسهٔ گزارش:</span>
+            <Select
               value={activeSessionKey}
               onChange={(e) => onSelectSession(e.target.value)}
-              className="bg-white/20 text-white border border-white/30 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none"
+              className="flex-1"
             >
               {sessionKeys.map((k) => (
-                <option key={k} value={k} className="text-slate-900 bg-white">
-                  جلسه {fmt(fromKey(k))}
+                <option key={k} value={k}>
+                  جلسهٔ {fmt(fromKey(k))}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         )}
-      </div>
+      </Card>
 
-      {/* Grid of Report Generators */}
-      <div className="space-y-2.5">
-        {tiles.map((t, idx) => {
+      <Card padded={false} className="p-1.5">
+        {tiles.map((t) => {
           const Icon = t.icon;
           return (
-            <div
-              key={idx}
+            <ListRow
+              key={t.title}
+              icon={<Icon size={19} />}
+              title={t.title}
+              description={t.desc}
+              tone={t.tone}
+              trailing={<Share2 size={15} className="text-muted/60 shrink-0" />}
               onClick={t.action}
-              className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between gap-3 cursor-pointer hover:border-purple-400 active:scale-98 transition-all"
-            >
-              <div className="flex items-center gap-3.5">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold ${t.color}`}>
-                  <Icon size={22} />
-                </div>
-                <div>
-                  <h4 className="font-extrabold text-sm text-slate-800 dark:text-slate-100">
-                    {t.title}
-                  </h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
-                    {t.desc}
-                  </p>
-                </div>
-              </div>
-              <Share2 size={16} className="text-slate-400" />
-            </div>
+            />
           );
         })}
-      </div>
+      </Card>
 
-      {/* Report Modal */}
-      {modalText && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" dir="rtl">
-          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-sm">
-                {modalTitle}
-              </h3>
-              <button
-                onClick={() => setModalText(null)}
-                className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <textarea
-              readOnly
-              value={modalText}
-              rows={12}
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-3.5 text-xs font-mono text-slate-800 dark:text-slate-100 focus:outline-none leading-relaxed"
-            />
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleCopy}
-                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-purple-600/20 active:scale-95 transition-all"
-              >
-                {copied ? <Check size={16} /> : <Copy size={16} />}
-                <span>{copied ? 'کپی شد!' : 'کپی متن گزارش'}</span>
-              </button>
-              <button
-                onClick={() => shareText(modalTitle, modalText)}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
-              >
-                <Share2 size={16} />
-                <span>اشتراک‌گذاری</span>
-              </button>
-              <button
-                onClick={() => setModalText(null)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold text-xs"
-              >
-                بستن
-              </button>
-            </div>
+      <Sheet
+        open={!!modalText}
+        onClose={() => setModalText(null)}
+        title={modalTitle}
+        subtitle="متن آمادهٔ کپی یا اشتراک‌گذاری در پیام‌رسان‌ها"
+        width="lg"
+        footer={
+          <div className="flex items-center gap-2">
+            <Button full size="sm" icon={copied ? <Check size={15} /> : <Copy size={15} />} onClick={handleCopy}>
+              {copied ? 'کپی شد' : 'کپی متن'}
+            </Button>
+            <Button
+              full
+              size="sm"
+              variant="secondary"
+              icon={<Share2 size={15} />}
+              onClick={() => modalText && shareText(modalTitle, modalText)}
+            >
+              اشتراک‌گذاری
+            </Button>
           </div>
-        </div>
-      )}
+        }
+      >
+        <textarea
+          readOnly
+          value={modalText || ''}
+          rows={14}
+          className="w-full bg-surface-2 border border-line rounded-field p-3.5 text-xs text-ink leading-7 focus:outline-none focus:border-accent/50"
+        />
+      </Sheet>
     </div>
   );
 };

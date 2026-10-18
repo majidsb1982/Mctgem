@@ -6,16 +6,30 @@ import {
   Mic,
   RotateCcw,
   Search,
-  CheckCircle2,
   Share2,
   FileSpreadsheet,
   DoorOpen,
-  Volume2
+  PhoneCall,
+  UserPlus,
+  Square,
+  Check,
 } from 'lucide-react';
-import { AppState, Member, AttendanceStatus } from '../types';
-import { fmt, fromKey, toFa, toKey, today } from '../utils/jalali';
+import { AppState, AttendanceStatus } from '../types';
+import { fmt, fromKey, toFa } from '../utils/jalali';
 import { getRoundReportText, copyToClipboard, shareText, getWhatsAppLink } from '../utils/reports';
 import { VoiceRecorder, playAlertTone } from '../utils/audio';
+import {
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  EmptyState,
+  IconButton,
+  Input,
+  SegmentedTabs,
+  Select,
+  Sheet,
+} from '../components/ui';
 
 interface AttendScreenProps {
   state: AppState;
@@ -24,6 +38,13 @@ interface AttendScreenProps {
   activeSessionKey: string;
   onSelectSession: (key: string) => void;
 }
+
+const STATUS_META = {
+  present: { label: 'حاضر', active: 'bg-success text-white border-success', idle: 'text-success' },
+  delay: { label: 'تأخیر', active: 'bg-warn text-white border-warn', idle: 'text-warn' },
+  absent: { label: 'غایب', active: 'bg-danger text-white border-danger', idle: 'text-danger' },
+  problem: { label: 'مشکل', active: 'bg-accent text-accent-fg border-accent', idle: 'text-accent-ink' },
+} as const;
 
 export const AttendScreen: React.FC<AttendScreenProps> = ({
   state,
@@ -40,14 +61,14 @@ export const AttendScreen: React.FC<AttendScreenProps> = ({
 
   const sessionData = (state?.sessions && state.sessions[activeSessionKey]) || {};
 
-  // All session keys available (past + current)
   const sessionKeys = Array.from(
     new Set([activeSessionKey, ...Object.keys(state?.sessions || {})])
-  ).sort().reverse();
+  )
+    .sort()
+    .reverse();
 
   const safeMembers = Array.isArray(state?.members) ? state.members.filter(Boolean) : [];
 
-  // Filter members
   const uncalled = safeMembers.filter((m) => !sessionData[m.id]?.p1);
   const called = safeMembers.filter((m) => !!sessionData[m.id]?.p1);
 
@@ -55,14 +76,9 @@ export const AttendScreen: React.FC<AttendScreenProps> = ({
     search ? (m.name || '').includes(search) : true
   );
 
-  const pct = safeMembers.length
-    ? Math.round((called.length / safeMembers.length) * 100)
-    : 0;
+  const pct = safeMembers.length ? Math.round((called.length / safeMembers.length) * 100) : 0;
 
-  const setStatus = (
-    memberId: string,
-    status: 'present' | 'delay' | 'absent' | 'problem'
-  ) => {
+  const setStatus = (memberId: string, status: 'present' | 'delay' | 'absent' | 'problem') => {
     onUpdateState((prev) => {
       const prevSession = prev.sessions[activeSessionKey] || {};
       const currentMemberStatus = prevSession[memberId] || {};
@@ -80,10 +96,7 @@ export const AttendScreen: React.FC<AttendScreenProps> = ({
         ...prev,
         sessions: {
           ...prev.sessions,
-          [activeSessionKey]: {
-            ...prevSession,
-            [memberId]: newMemberStatus,
-          },
+          [activeSessionKey]: { ...prevSession, [memberId]: newMemberStatus },
         },
       };
     });
@@ -98,10 +111,7 @@ export const AttendScreen: React.FC<AttendScreenProps> = ({
         ...prev,
         sessions: {
           ...prev.sessions,
-          [activeSessionKey]: {
-            ...prevSession,
-            [memberId]: { ...cur, time: timeVal },
-          },
+          [activeSessionKey]: { ...prevSession, [memberId]: { ...cur, time: timeVal } },
         },
       };
     });
@@ -115,10 +125,7 @@ export const AttendScreen: React.FC<AttendScreenProps> = ({
         ...prev,
         sessions: {
           ...prev.sessions,
-          [activeSessionKey]: {
-            ...prevSession,
-            [memberId]: { ...cur, note: noteVal },
-          },
+          [activeSessionKey]: { ...prevSession, [memberId]: { ...cur, note: noteVal } },
         },
       };
     });
@@ -132,10 +139,7 @@ export const AttendScreen: React.FC<AttendScreenProps> = ({
         ...prev,
         sessions: {
           ...prev.sessions,
-          [activeSessionKey]: {
-            ...prevSession,
-            [memberId]: { ...cur, p1: null },
-          },
+          [activeSessionKey]: { ...prevSession, [memberId]: { ...cur, p1: null } },
         },
       };
     });
@@ -163,10 +167,7 @@ export const AttendScreen: React.FC<AttendScreenProps> = ({
             ...prev,
             sessions: {
               ...prev.sessions,
-              [activeSessionKey]: {
-                ...prevSession,
-                [memberId]: { ...cur, a1: audioData },
-              },
+              [activeSessionKey]: { ...prevSession, [memberId]: { ...cur, a1: audioData } },
             },
           };
         });
@@ -191,19 +192,13 @@ export const AttendScreen: React.FC<AttendScreenProps> = ({
             : cur.p1 === 'problem'
             ? 'مشکل'
             : 'ثبت‌نشده';
-        return [
-          m.name,
-          (m.phones || []).join(' - '),
-          stLabel,
-          cur.time || '',
-          cur.note || '',
-        ];
+        return [m.name, (m.phones || []).join(' - '), stLabel, cur.time || '', cur.note || ''];
       }),
     ];
 
     const csvContent =
       'data:text/csv;charset=utf-8,\uFEFF' +
-      rows.map((e) => e.map((x) => `"${x.replace(/"/g, '""')}"`).join(',')).join('\n');
+      rows.map((e) => e.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
@@ -213,380 +208,284 @@ export const AttendScreen: React.FC<AttendScreenProps> = ({
     link.remove();
   };
 
-  const openReport = () => {
-    const text = getRoundReportText(state, activeSessionKey, 1, true);
-    setReportModal(text);
-  };
+  const openReport = () => setReportModal(getRoundReportText(state, activeSessionKey, 1, true));
 
   return (
-    <div className="space-y-4 pb-12 animate-fade-in" dir="rtl">
-      {/* Banner */}
-      <div className="p-4 rounded-3xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 text-blue-950 dark:text-blue-200 text-xs leading-relaxed space-y-1">
-        <div className="font-extrabold text-sm flex items-center gap-1.5">
-          <span>📞</span>
-          <span>نوبت ۱ — تماس‌های قبلی با اعضا</span>
-        </div>
-        <p className="opacity-90">
-          چند ساعت یا یک روز قبل از کلاس با اعضا تماس بگیرید. پس از تکمیل، گزارش را برای حامی‌ها ارسال کنید.
-        </p>
-      </div>
-
-      {/* Main Card with Session Selector & Progress */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-        {/* Session Selector */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-bold text-slate-500 dark:text-slate-400">انتخاب تاریخ جلسه:</label>
-          <select
-            value={activeSessionKey}
-            onChange={(e) => onSelectSession(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-2xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          >
-            {sessionKeys.map((k) => (
-              <option key={k} value={k}>
-                جلسه {fmt(fromKey(k))}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs font-bold">
-            <span className="text-slate-600 dark:text-slate-400">
-              ثبت‌شده: <b className="text-blue-600 dark:text-blue-400">{toFa(called.length)}</b> از {toFa(state.members.length)}
+    <div className="space-y-4 pb-12">
+      {/* Session + progress */}
+      <Card>
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <span className="w-9 h-9 rounded-xl bg-accent/10 text-accent-ink flex items-center justify-center">
+              <PhoneCall size={17} />
             </span>
-            <span className="text-blue-600 dark:text-blue-400 font-extrabold">{toFa(pct)}٪</span>
+            <div>
+              <p className="text-sm font-bold text-ink leading-6">تماس‌های نوبت ۱</p>
+              <p className="text-[11px] text-muted leading-4">قبل از کلاس با اعضا هماهنگ کنید</p>
+            </div>
           </div>
-          <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+          <Badge tone="accent">{toFa(pct)}٪</Badge>
+        </div>
+
+        <Select value={activeSessionKey} onChange={(e) => onSelectSession(e.target.value)}>
+          {sessionKeys.map((k) => (
+            <option key={k} value={k}>
+              جلسهٔ {fmt(fromKey(k))}
+            </option>
+          ))}
+        </Select>
+
+        <div className="mt-3">
+          <div className="flex justify-between text-[11px] font-bold mb-1.5">
+            <span className="text-muted">
+              ثبت‌شده: <b className="text-accent-ink num">{toFa(called.length)}</b> از{' '}
+              <span className="num">{toFa(safeMembers.length)}</span>
+            </span>
+            <span className="text-accent-ink num">{toFa(pct)}٪</span>
+          </div>
+          <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
             <div
-              className="h-full bg-gradient-to-l from-blue-600 to-indigo-500 rounded-full transition-all duration-300"
+              className="h-full rounded-full bg-accent transition-all duration-300"
               style={{ width: `${pct}%` }}
             />
           </div>
         </div>
 
-        {/* Sub-actions */}
-        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 overflow-x-auto pb-1">
-          <button
-            onClick={() => onNavigate('entry')}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 whitespace-nowrap active:scale-95 transition-all shadow-sm"
-          >
-            <DoorOpen size={15} />
-            <span>نوبت ۲ (پشت در)</span>
-          </button>
-          <button
-            onClick={openReport}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 whitespace-nowrap active:scale-95 transition-all shadow-sm"
-          >
-            <Share2 size={15} />
-            <span>گزارش به حامی</span>
-          </button>
-          <button
-            onClick={exportCSV}
-            className="border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 whitespace-nowrap hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95"
-          >
-            <FileSpreadsheet size={15} />
-            <span>خروجی اکسل</span>
-          </button>
+        <div className="flex items-center gap-2 mt-4 overflow-x-auto no-scrollbar">
+          <Button size="sm" icon={<DoorOpen size={15} />} onClick={() => onNavigate('entry')}>
+            نوبت ۲
+          </Button>
+          <Button size="sm" variant="secondary" icon={<Share2 size={15} />} onClick={openReport}>
+            گزارش حامی
+          </Button>
+          <Button size="sm" variant="ghost" icon={<FileSpreadsheet size={15} />} onClick={exportCSV}>
+            اکسل
+          </Button>
         </div>
-      </div>
+      </Card>
 
-      {/* Tabs: Uncalled vs Called */}
-      <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl">
-        <button
-          onClick={() => setDoneTab(false)}
-          className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 ${
-            !doneTab
-              ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
-              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
-        >
-          <span>⏳ ثبت‌نشده</span>
-          <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-200 dark:bg-slate-700">
-            {toFa(uncalled.length)}
-          </span>
-        </button>
-        <button
-          onClick={() => setDoneTab(true)}
-          className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 ${
-            doneTab
-              ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
-              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
-        >
-          <span>✓ ثبت‌شده</span>
-          <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-200 dark:bg-slate-700">
-            {toFa(called.length)}
-          </span>
-        </button>
-      </div>
+      <SegmentedTabs
+        items={[
+          { id: 'pending', label: 'ثبت‌نشده', count: uncalled.length },
+          { id: 'done', label: 'ثبت‌شده', count: called.length },
+        ]}
+        value={doneTab ? 'done' : 'pending'}
+        onChange={(v) => setDoneTab(v === 'done')}
+      />
 
-      {/* Search Input */}
       <div className="relative">
-        <Search size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-        <input
+        <Search
+          size={17}
+          className="absolute start-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+        />
+        <Input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="جستجوی نام در لیست..."
-          className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl pr-10 pl-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="جستجوی نام…"
+          className="ps-10"
         />
       </div>
 
-      {/* Members List */}
       <div className="space-y-3">
         {safeMembers.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200/80 dark:border-slate-800 text-center space-y-3">
-            <span className="text-3xl block mb-1">📞</span>
-            <h4 className="font-extrabold text-sm text-slate-800 dark:text-slate-100">
-              هنوز عضوی برای ثبت حضور در این کلاس تعریف نشده است
-            </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
-              برای هماهنگی تلفنی و ثبت حضور نوبت ۱، ابتدا از بخش اعضا افراد را ثبت کنید.
-            </p>
-            <button
-              onClick={() => onNavigate('members')}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs inline-flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
-            >
-              <span>➕ افزودن عضو جدید</span>
-            </button>
-          </div>
+          <EmptyState
+            icon={<PhoneCall size={22} />}
+            title="هنوز عضوی ثبت نشده است"
+            description="برای ثبت تماس‌های نوبت ۱، ابتدا اعضای گروه را اضافه کنید."
+            action={
+              <Button size="sm" icon={<UserPlus size={15} />} onClick={() => onNavigate('members')}>
+                افزودن عضو
+              </Button>
+            }
+          />
         ) : displayedMembers.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200/80 dark:border-slate-800 text-center">
-            <span className="text-3xl block mb-2">{doneTab ? '📭' : '🎉'}</span>
-            <p className="font-bold text-sm text-slate-600 dark:text-slate-300">
-              {doneTab ? 'هنوز تماسی ثبت نشده است' : 'همه تماس‌های این جلسه ثبت شده‌اند!'}
-            </p>
-          </div>
+          <EmptyState
+            icon={<Check size={22} />}
+            title={doneTab ? 'هنوز تماسی ثبت نشده' : 'همهٔ تماس‌های این جلسه ثبت شد'}
+            description={
+              doneTab
+                ? 'پس از ثبت وضعیت هر عضو، فهرست اینجا نمایش داده می‌شود.'
+                : 'می‌توانید گزارش را برای حامیان ارسال کنید.'
+            }
+          />
         ) : (
           displayedMembers.map((member) => {
             const cur = sessionData[member.id] || {};
             const isRecording = recordingForId === member.id;
+            const status = cur.p1 as keyof typeof STATUS_META | undefined;
 
             return (
-              <div
+              <Card
                 key={member.id}
-                className={`bg-white dark:bg-slate-900 rounded-3xl p-4 border transition-all shadow-sm ${
-                  cur.p1 ? 'border-blue-200 dark:border-blue-900/60 bg-blue-50/20' : 'border-slate-200/80 dark:border-slate-800'
-                }`}
+                className={`space-y-3 ${status ? 'border-accent/25' : ''}`}
               >
-                {/* Member Header & Call Buttons */}
-                <div className="flex items-center justify-between gap-2 pb-3">
-                  <div className="flex items-center gap-3">
-                    {/* Avatar */}
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-slate-200 to-slate-100 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center font-black text-slate-700 dark:text-slate-200 text-base shadow-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 shrink-0 rounded-xl bg-surface-2 border border-line text-ink flex items-center justify-center font-bold text-sm">
                       {member.name.trim().charAt(0) || '؟'}
                     </div>
 
-                    <div>
-                      <h4 className="font-extrabold text-slate-800 dark:text-slate-100 text-sm">
-                        {member.name}
-                      </h4>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        {member.careFlag && (
-                          <span className="px-1.5 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 text-[10px] font-bold">
-                            حمایتی
-                          </span>
-                        )}
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-sm text-ink truncate">{member.name}</h4>
+                      <div className="flex flex-wrap items-center gap-1 mt-1">
+                        {member.careFlag && <Badge tone="danger">حمایتی</Badge>}
                         {member.needs && member.needs.length > 0 && (
-                          <span className="px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 text-[10px] font-bold">
-                            نیاز ویژه
-                          </span>
+                          <Badge tone="warn">نیاز ویژه</Badge>
                         )}
-                        {cur.p1 && (
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                              cur.p1 === 'present'
-                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                                : cur.p1 === 'delay'
-                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
-                                : cur.p1 === 'absent'
-                                ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
-                                : 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
-                            }`}
+                        {status && (
+                          <Badge
+                            tone={
+                              status === 'present'
+                                ? 'success'
+                                : status === 'delay'
+                                ? 'warn'
+                                : status === 'absent'
+                                ? 'danger'
+                                : 'accent'
+                            }
                           >
-                            {cur.p1 === 'present'
-                              ? 'حاضر'
-                              : cur.p1 === 'delay'
-                              ? `تأخیر (${toFa(cur.time || '19:30')})`
-                              : cur.p1 === 'absent'
-                              ? 'غایب'
-                              : 'مشکل'}
-                          </span>
+                            {status === 'delay'
+                              ? `تأخیر ${toFa(cur.time || '19:30')}`
+                              : STATUS_META[status].label}
+                          </Badge>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Multi-phone call & WhatsApp links */}
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1 shrink-0">
                     {(member.phones || []).slice(0, 2).map((phone, pIdx) => (
                       <React.Fragment key={pIdx}>
                         <a
                           href={`tel:${phone}`}
-                          title={`تماس با شماره ${toFa(pIdx + 1)}`}
-                          className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center hover:bg-emerald-100 active:scale-95 transition-transform"
+                          title={`تماس با شمارهٔ ${toFa(pIdx + 1)}`}
+                          aria-label={`تماس با شمارهٔ ${toFa(pIdx + 1)}`}
+                          className="w-10 h-10 rounded-xl bg-success/10 text-success flex items-center justify-center hover:bg-success/15 active:scale-95 transition-transform"
                         >
-                          <Phone size={15} />
+                          <Phone size={16} />
                         </a>
                         <a
                           href={getWhatsAppLink(phone)}
                           target="_blank"
                           rel="noreferrer"
-                          title={`واتساپ شماره ${toFa(pIdx + 1)}`}
-                          className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 active:scale-95 transition-transform shadow-sm"
+                          title={`واتساپ شمارهٔ ${toFa(pIdx + 1)}`}
+                          aria-label={`واتساپ شمارهٔ ${toFa(pIdx + 1)}`}
+                          className="w-10 h-10 rounded-xl bg-success text-white flex items-center justify-center hover:brightness-110 active:scale-95 transition-transform"
                         >
-                          <MessageCircle size={15} />
+                          <MessageCircle size={16} />
                         </a>
                       </React.Fragment>
                     ))}
                     {doneTab && (
-                      <button
+                      <IconButton
+                        aria-label="بازگردانی به ثبت‌نشده"
                         onClick={() => restoreMember(member.id)}
-                        title="بازگردانی به ثبت‌نشده"
-                        className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95"
                       >
                         <RotateCcw size={16} />
-                      </button>
+                      </IconButton>
                     )}
                   </div>
                 </div>
 
-                {/* Status Selection Buttons */}
-                <div className="grid grid-cols-4 gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <button
-                    onClick={() => setStatus(member.id, 'present')}
-                    className={`py-2 px-1 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-                      cur.p1 === 'present'
-                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 font-black'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
-                    }`}
-                  >
-                    حاضر
-                  </button>
-                  <button
-                    onClick={() => setStatus(member.id, 'delay')}
-                    className={`py-2 px-1 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-                      cur.p1 === 'delay'
-                        ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30 font-black'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-950/30'
-                    }`}
-                  >
-                    تأخیر
-                  </button>
-                  <button
-                    onClick={() => setStatus(member.id, 'absent')}
-                    className={`py-2 px-1 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-                      cur.p1 === 'absent'
-                        ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 font-black'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/30'
-                    }`}
-                  >
-                    غایب
-                  </button>
-                  <button
-                    onClick={() => setStatus(member.id, 'problem')}
-                    className={`py-2 px-1 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-                      cur.p1 === 'problem'
-                        ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30 font-black'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-purple-50 dark:hover:bg-purple-950/30'
-                    }`}
-                  >
-                    مشکل
-                  </button>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {(Object.keys(STATUS_META) as (keyof typeof STATUS_META)[]).map((key) => {
+                    const active = cur.p1 === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setStatus(member.id, key)}
+                        aria-pressed={active}
+                        className={`min-h-10 rounded-field border text-[11px] font-bold transition-all active:scale-95 ${
+                          active
+                            ? STATUS_META[key].active
+                            : `bg-surface-2 border-line ${STATUS_META[key].idle} hover:bg-line/50`
+                        }`}
+                      >
+                        {STATUS_META[key].label}
+                      </button>
+                    );
+                  })}
                 </div>
 
-                {/* Delay Time Input (when delay selected) */}
                 {cur.p1 === 'delay' && (
-                  <div className="flex items-center gap-2 mt-2.5 p-2 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200/60 dark:border-amber-800/50">
-                    <Clock size={16} className="text-amber-600 dark:text-amber-400" />
-                    <span className="text-xs font-bold text-amber-800 dark:text-amber-300">ساعت تقریبی ورود:</span>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-field bg-warn/[0.08] border border-warn/20">
+                    <Clock size={15} className="text-warn shrink-0" />
+                    <span className="text-[11px] font-bold text-ink">ساعت تقریبی ورود</span>
                     <input
                       type="time"
                       value={cur.time || '19:30'}
                       onChange={(e) => updateTime(member.id, e.target.value)}
-                      className="bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded-lg px-2 py-1 text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none"
+                      className="ms-auto h-9 bg-surface border border-line rounded-lg px-2 text-xs font-bold text-ink"
                     />
                   </div>
                 )}
 
-                {/* Additional Note & Voice Recorder */}
                 {cur.p1 && cur.p1 !== 'present' && (
-                  <div className="mt-2.5 space-y-2">
-                    <input
+                  <div className="space-y-2 pt-1">
+                    <Input
                       type="text"
-                      placeholder="یادداشت توضیح پیگیری (اختیاری)..."
+                      placeholder="یادداشت پیگیری (اختیاری)…"
                       value={cur.note || ''}
                       onChange={(e) => updateNote(member.id, e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="h-10 text-xs"
                     />
 
                     <div className="flex items-center gap-2">
-                      <button
+                      <Button
+                        size="sm"
+                        variant={isRecording ? 'danger' : 'secondary'}
+                        icon={isRecording ? <Square size={13} /> : <Mic size={13} />}
                         onClick={() =>
                           isRecording ? stopVoiceRecord(member.id) : startVoiceRecord(member.id)
                         }
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors ${
-                          isRecording
-                            ? 'bg-rose-500 text-white animate-pulse'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                        }`}
                       >
-                        <Mic size={14} />
-                        <span>{isRecording ? 'توقف ضبط' : '🎙 ضبط یادداشت صوتی'}</span>
-                      </button>
-
-                      {cur.a1 && (
-                        <audio controls src={cur.a1} className="h-7 max-w-45" />
-                      )}
+                        {isRecording ? 'توقف ضبط' : 'یادداشت صوتی'}
+                      </Button>
+                      {cur.a1 && <audio controls src={cur.a1} className="h-8 flex-1 min-w-0" />}
                     </div>
                   </div>
                 )}
-              </div>
+              </Card>
             );
           })
         )}
       </div>
 
-      {/* Report Modal */}
-      {reportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" dir="rtl">
-          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-base">
-              📤 گزارش نوبت ۱ (تماس‌های قبلی)
-            </h3>
-            <textarea
-              readOnly
-              value={reportModal}
-              rows={12}
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none"
-            />
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  copyToClipboard(reportModal);
-                  alert('متن گزارش با موفقیت در کلیپ‌بورد کپی شد.');
-                }}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md"
-              >
-                📋 کپی متن
-              </button>
-              <button
-                onClick={() => shareText('گزارش نوبت ۱', reportModal)}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md"
-              >
-                📤 اشتراک‌گذاری
-              </button>
-              <button
-                onClick={() => setReportModal(null)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold text-xs"
-              >
-                بستن
-              </button>
-            </div>
+      <Sheet
+        open={!!reportModal}
+        onClose={() => setReportModal(null)}
+        title="گزارش نوبت ۱"
+        subtitle="آمادهٔ ارسال به حامیان"
+        width="lg"
+        footer={
+          <div className="flex items-center gap-2">
+            <Button
+              full
+              size="sm"
+              icon={<Share2 size={15} />}
+              onClick={() => reportModal && copyToClipboard(reportModal)}
+            >
+              کپی متن
+            </Button>
+            <Button
+              full
+              size="sm"
+              variant="secondary"
+              onClick={() => reportModal && shareText('گزارش نوبت ۱', reportModal)}
+            >
+              اشتراک‌گذاری
+            </Button>
           </div>
-        </div>
-      )}
+        }
+      >
+        <textarea
+          readOnly
+          value={reportModal || ''}
+          rows={14}
+          className="w-full bg-surface-2 border border-line rounded-field p-3.5 text-xs text-ink leading-7 focus:outline-none"
+        />
+      </Sheet>
     </div>
   );
 };

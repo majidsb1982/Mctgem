@@ -1,21 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import {
   Calendar,
-  Clock,
   PhoneCall,
   DoorOpen,
-  DollarSign,
+  Wallet,
   Users,
   FileText,
   Cake,
   CheckCircle2,
-  AlertCircle,
   Sparkles,
-  ChevronLeft,
-  RefreshCw
+  RefreshCw,
+  UserPlus,
+  ClipboardList,
+  ArrowLeft,
 } from 'lucide-react';
 import { AppState } from '../types';
 import { getNextClass, fmt, toFa, DN, today } from '../utils/jalali';
+import { Badge, Button, Card, CardHeader, EmptyState, ListRow } from '../components/ui';
 
 interface HomeScreenProps {
   state: AppState;
@@ -57,7 +58,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         txt += `${toFa(hh)} ساعت و ${toFa(mm)} دقیقه`;
         setTimeLeft({ text: txt, inProgress: false });
       } else if (diff > -2 * 36e5) {
-        setTimeLeft({ text: '🎬 کلاس در جریان است', inProgress: true });
+        setTimeLeft({ text: 'کلاس در جریان است', inProgress: true });
       } else {
         setTimeLeft({ text: 'کلاس پایان یافته', inProgress: false });
       }
@@ -68,7 +69,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     return () => clearInterval(interval);
   }, [state.classes, state.extra]);
 
-  // Statistics
   const curSession = (state?.sessions && state.sessions[activeSessionKey]) || {};
   const curFees = (state?.fees && state.fees[activeSessionKey]) || {};
 
@@ -78,7 +78,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const unpaidCount = safeMembers.filter((m) => !curFees[m.id]?.paid).length;
   const totalMembers = safeMembers.length;
 
-  // Upcoming birthdays today or tomorrow
   const currentJDate = today();
   const upcomingBirthdays: { name: string; isToday: boolean }[] = [];
   safeMembers.forEach((m) => {
@@ -91,365 +90,274 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     }
   });
 
+  const quickLinks = [
+    { id: 'attend', label: 'تماس‌ها', hint: 'نوبت ۱', icon: PhoneCall, tone: 'accent' as const },
+    { id: 'entry', label: 'ثبت ورود', hint: 'نوبت ۲', icon: DoorOpen, tone: 'success' as const },
+    { id: 'fees', label: 'شهریه', hint: 'واریز', icon: Wallet, tone: 'warn' as const },
+    { id: 'reports', label: 'گزارش', hint: 'حامی', icon: Sparkles, tone: 'accent' as const },
+    { id: 'members', label: 'اعضا', hint: `${toFa(totalMembers)} نفر`, icon: Users, tone: 'neutral' as const },
+    { id: 'homework', label: 'تکالیف', hint: 'آرشیو', icon: FileText, tone: 'accent' as const },
+  ];
+
+  const toneClass: Record<string, string> = {
+    accent: 'bg-accent/10 text-accent-ink',
+    success: 'bg-success/10 text-success',
+    warn: 'bg-warn/12 text-warn',
+    neutral: 'bg-surface-2 text-muted',
+  };
+
   return (
-    <div className="space-y-4 pb-6 animate-fade-in" dir="rtl">
-      {/* Quick Demo Reload Banner or Empty Class Card */}
+    <div className="space-y-4 pb-6">
+      {/* Empty class onboarding */}
       {totalMembers === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-blue-200/90 dark:border-blue-900/60 shadow-sm text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto text-xl font-bold">
-            👥
-          </div>
-          <div>
-            <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-100 mb-1">
-              کلاس آماده است — هنوز عضوی افزوده نشده
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
-              شما می‌توانید اعضای کلاس را به دلخواه اضافه کنید، یا در صورت تمایل نمونه آزمایشی را بارگذاری نمایید.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-            <button
-              onClick={() => onNavigate('members')}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
-            >
-              <span>➕ افزودن عضو جدید</span>
-            </button>
-            {onResetDemo && (
-              <button
-                onClick={onResetDemo}
-                className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold py-2.5 px-3.5 rounded-xl text-xs flex items-center gap-1.5 active:scale-95 transition-all"
-              >
-                <RefreshCw size={13} className="text-amber-500" />
-                <span>بارگذاری نمونه آزمایشی</span>
-              </button>
-            )}
-          </div>
-        </div>
+        <EmptyState
+          icon={<Users size={22} />}
+          title="کلاس آماده است — هنوز عضوی اضافه نشده"
+          description="اعضای گروه را خودتان اضافه کنید، یا برای آشنایی با برنامه یک نمونهٔ آزمایشی بارگذاری کنید."
+          action={
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button size="sm" icon={<UserPlus size={15} />} onClick={() => onNavigate('members')}>
+                افزودن عضو
+              </Button>
+              {onResetDemo && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon={<RefreshCw size={15} />}
+                  onClick={onResetDemo}
+                >
+                  نمونهٔ آزمایشی
+                </Button>
+              )}
+            </div>
+          }
+        />
       ) : (
-        <div className="flex items-center justify-between px-4 py-2 bg-blue-50/80 dark:bg-blue-950/40 rounded-2xl border border-blue-200/80 dark:border-blue-900/60 text-xs">
-          <span className="text-blue-900 dark:text-blue-300 font-semibold">
-            ✨ کلاس: <b>{state.settings.className}</b> ({toFa(totalMembers)} عضو)
-          </span>
+        <div className="flex items-center justify-between gap-3 px-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <Badge tone="accent" dot>
+              {toFa(totalMembers)} عضو فعال
+            </Badge>
+            <span className="text-[11px] text-muted truncate">{state.settings.className}</span>
+          </div>
           {onResetToEmpty && (
             <button
-              onClick={onResetToEmpty}
-              className="text-slate-400 hover:text-rose-600 font-medium text-[11px] underline"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    'تمام اعضا و اطلاعات جلسات پاک شود؟ این کار قابل بازگشت نیست.'
+                  )
+                ) {
+                  onResetToEmpty();
+                }
+              }}
+              className="text-[11px] font-semibold text-muted hover:text-danger transition-colors shrink-0"
             >
-              حذف تمام اعضا (کلاس خالی)
+              کلاس خالی
             </button>
           )}
         </div>
       )}
 
-      {/* Hero: Next Class Countdown Card */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 text-white p-6 shadow-xl shadow-blue-500/20">
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-2 opacity-90 text-xs font-bold">
-            <span className="flex items-center gap-1.5 bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
-              <Calendar size={14} />
-              <span>جلسه بعدی کلاس</span>
+      {/* Next class hero */}
+      <section className="rounded-card bg-surface border border-line overflow-hidden shadow-sm shadow-black/[0.03]">
+        <div className="h-1 bg-accent" />
+        <div className="p-5 bg-gradient-to-bl from-accent/[0.07] via-transparent to-transparent">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-accent-ink bg-accent/10 px-2.5 py-1 rounded-full">
+              <Calendar size={13} />
+              جلسهٔ بعدی
             </span>
             {nextClass?.c.extra ? (
-              <span className="bg-amber-400 text-slate-900 px-2 py-0.5 rounded-full text-[10px] font-black">
-                جلسه خاص / جبرانی
-              </span>
+              <Badge tone="warn">جلسهٔ جبرانی</Badge>
             ) : (
-              <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-[10px]">
-                جلسه منظم هفتگی
-              </span>
+              <span className="text-[10px] font-semibold text-muted">جلسهٔ منظم هفتگی</span>
             )}
           </div>
 
           {nextClass ? (
             <>
-              <h2 className="text-xl sm:text-2xl font-black mt-2">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-ink leading-8">
                 {DN[nextClass.c.dow]} {fmt(nextClass.date)}
               </h2>
-              <p className="text-sm opacity-90 mt-0.5">
+              <p className="text-xs font-semibold text-muted mt-1 num">
                 ساعت {toFa(nextClass.c.start)} تا {toFa(nextClass.c.end)}
               </p>
 
-              <div className="my-4 py-3 px-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15">
-                <span className="text-[11px] block font-semibold opacity-80 mb-0.5">زمان باقی‌مانده تا شروع:</span>
-                <span className="text-xl sm:text-2xl font-black tracking-tight text-amber-200">
+              <div className="mt-4 rounded-field bg-surface/80 border border-line px-4 py-3">
+                <span className="block text-[10px] font-bold text-muted mb-1">
+                  زمان باقی‌مانده تا شروع
+                </span>
+                <span
+                  className={`block text-xl sm:text-2xl font-extrabold num leading-8 ${
+                    timeLeft.inProgress ? 'text-success' : 'text-accent-ink'
+                  }`}
+                >
                   {timeLeft.text}
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 mt-4">
-                <button
-                  onClick={() => onNavigate('attend')}
-                  className="bg-white/20 hover:bg-white/30 text-white font-bold py-2.5 px-3 rounded-xl border border-white/20 flex items-center justify-center gap-2 text-sm backdrop-blur-sm active:scale-95 transition-all shadow-sm"
-                >
-                  <PhoneCall size={16} />
-                  <span>تماس‌ها (نوبت ۱)</span>
-                </button>
-                <button
+              <div className="grid grid-cols-2 gap-2.5 mt-4">
+                <Button
+                  icon={<DoorOpen size={16} />}
                   onClick={() => onNavigate('entry')}
-                  className="bg-white text-blue-700 font-extrabold py-2.5 px-3 rounded-xl shadow-md hover:bg-slate-50 flex items-center justify-center gap-2 text-sm active:scale-95 transition-all"
+                  className="w-full"
                 >
-                  <DoorOpen size={16} />
-                  <span>ثبت ورود (نوبت ۲)</span>
-                </button>
+                  ثبت ورود
+                </Button>
+                <Button
+                  variant="secondary"
+                  icon={<PhoneCall size={16} />}
+                  onClick={() => onNavigate('attend')}
+                  className="w-full"
+                >
+                  تماس‌ها
+                </Button>
               </div>
             </>
           ) : (
-            <div className="py-6 text-center">
-              <p className="font-bold text-base opacity-95">برنامه کلاسی ثبت نشده است</p>
-              <button
-                onClick={() => onNavigate('settings')}
-                className="mt-3 bg-white text-blue-700 px-4 py-2 rounded-xl text-xs font-bold"
-              >
-                افزودن کلاس در تنظیمات
-              </button>
+            <div className="py-4">
+              <p className="font-bold text-sm text-ink">برنامهٔ کلاسی ثبت نشده است</p>
+              <p className="text-xs text-muted mt-1 mb-3">
+                برای شروع، روز و ساعت کلاس را در تنظیمات مشخص کنید.
+              </p>
+              <Button size="sm" onClick={() => onNavigate('settings')}>
+                افزودن کلاس
+              </Button>
             </div>
           )}
         </div>
+      </section>
 
-        {/* Decorative blur circle */}
-        <div className="absolute -left-12 -bottom-12 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-      </div>
+      {/* Today's actions */}
+      <Card>
+        <CardHeader
+          icon={<CheckCircle2 size={17} />}
+          title="اقدامات جلسهٔ جاری"
+          action={<span className="text-[11px] font-semibold text-muted num">{fmt(today())}</span>}
+          className="mb-2"
+        />
 
-      {/* Quick Task Statuses */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-black text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">
-            <CheckCircle2 size={18} className="text-blue-600 dark:text-blue-400" />
-            <span>اقدامات جلسه جاری</span>
-          </h3>
-          <span className="text-xs text-slate-400 font-semibold">
-            امروز {fmt(today())}
-          </span>
-        </div>
-
-        <div className="space-y-2">
-          {/* Round 1 task */}
-          <div
+        <div className="divide-y divide-line/70">
+          <ListRow
+            icon={<PhoneCall size={18} />}
+            title="تماس‌های نوبت ۱"
+            description={
+              uncalledCount > 0 ? (
+                <span className="text-warn font-bold">{toFa(uncalledCount)} نفر ثبت‌نشده</span>
+              ) : (
+                <span className="text-success font-bold">همهٔ تماس‌ها انجام شد</span>
+              )
+            }
             onClick={() => onNavigate('attend')}
-            className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50/60 dark:hover:bg-slate-800 cursor-pointer transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                <PhoneCall size={20} />
-              </div>
-              <div>
-                <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm">تماس‌های قبلی (نوبت ۱)</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  {uncalledCount > 0 ? (
-                    <span className="text-amber-600 dark:text-amber-400 font-semibold">
-                      {toFa(uncalledCount)} نفر ثبت‌نشده
-                    </span>
-                  ) : (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                      همه تماس‌ها انجام شد ✅
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-            <ChevronLeft size={18} className="text-slate-400" />
-          </div>
-
-          {/* Round 2 task */}
-          <div
+          />
+          <ListRow
+            icon={<DoorOpen size={18} />}
+            title="ثبت ورود نوبت ۲"
+            description={
+              unenteredCount > 0 ? (
+                <span className="text-muted">{toFa(unenteredCount)} نفر باقی‌مانده</span>
+              ) : (
+                <span className="text-success font-bold">ورود همه ثبت شد</span>
+              )
+            }
+            tone="success"
             onClick={() => onNavigate('entry')}
-            className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-emerald-50/60 dark:hover:bg-slate-800 cursor-pointer transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                <DoorOpen size={20} />
-              </div>
-              <div>
-                <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm">ثبت ورود پشت در (نوبت ۲)</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  {unenteredCount > 0 ? (
-                    <span className="text-slate-600 dark:text-slate-300">
-                      {toFa(unenteredCount)} نفر باقی‌مانده
-                    </span>
-                  ) : (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                      ورود همه ثبت شد 🎉
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-            <ChevronLeft size={18} className="text-slate-400" />
-          </div>
-
-          {/* Fee task */}
-          <div
+          />
+          <ListRow
+            icon={<Wallet size={18} />}
+            title="واریز شهریه"
+            description={
+              unpaidCount > 0 ? (
+                <span className="text-danger font-bold">{toFa(unpaidCount)} نفر پرداخت‌نشده</span>
+              ) : (
+                <span className="text-success font-bold">شهریه کامل واریز شده</span>
+              )
+            }
+            tone="warn"
             onClick={() => onNavigate('fees')}
-            className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-amber-50/60 dark:hover:bg-slate-800 cursor-pointer transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                <DollarSign size={20} />
-              </div>
-              <div>
-                <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm">واریز شهریه</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  {unpaidCount > 0 ? (
-                    <span className="text-rose-500 font-semibold">
-                      {toFa(unpaidCount)} نفر پرداخت‌نشده
-                    </span>
-                  ) : (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                      شهریه کامل واریز شده ✅
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-            <ChevronLeft size={18} className="text-slate-400" />
-          </div>
-
-          {/* Birthday alert if any */}
+          />
           {upcomingBirthdays.length > 0 && (
-            <div
+            <ListRow
+              icon={<Cake size={18} />}
+              title="تولد در راه است"
+              description={upcomingBirthdays
+                .map((b) => `${b.name} (${b.isToday ? 'امروز' : 'فردا'})`)
+                .join('، ')}
+              tone="danger"
               onClick={() => onNavigate('members')}
-              className="flex items-center justify-between p-3.5 rounded-2xl bg-pink-50 dark:bg-pink-950/30 border border-pink-200/60 dark:border-pink-800/50 cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-pink-200 dark:bg-pink-900 text-pink-600 dark:text-pink-300 flex items-center justify-center">
-                  <Cake size={20} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-pink-900 dark:text-pink-200 text-sm">تولد در راه است! 🎉</h4>
-                  <p className="text-xs text-pink-700 dark:text-pink-300">
-                    {upcomingBirthdays.map((b) => `${b.name} (${b.isToday ? 'امروز 🎂' : 'فردا'})`).join('، ')}
-                  </p>
-                </div>
-              </div>
-              <ChevronLeft size={18} className="text-pink-500" />
-            </div>
+            />
           )}
         </div>
-      </div>
+      </Card>
 
-      {/* Quick Access Hub Grid */}
+      {/* Quick access */}
       <div>
-        <h3 className="font-extrabold text-xs text-slate-500 dark:text-slate-400 mb-2.5 px-1">
-          دسترسی سریع به بخش‌ها
-        </h3>
-        <div className="grid grid-cols-3 gap-2.5">
-          <button
-            onClick={() => onNavigate('attend')}
-            className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-right hover:border-blue-500 active:scale-95 transition-all shadow-sm"
-          >
-            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2">
-              <PhoneCall size={18} />
-            </div>
-            <div className="font-bold text-xs text-slate-800 dark:text-slate-200">حضور ۱</div>
-            <div className="text-[10px] text-slate-400">تماس قبلی</div>
-          </button>
-
-          <button
-            onClick={() => onNavigate('entry')}
-            className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-right hover:border-emerald-500 active:scale-95 transition-all shadow-sm"
-          >
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2">
-              <DoorOpen size={18} />
-            </div>
-            <div className="font-bold text-xs text-slate-800 dark:text-slate-200">نوبت ۲</div>
-            <div className="text-[10px] text-slate-400">پشت در کلاس</div>
-          </button>
-
-          <button
-            onClick={() => onNavigate('fees')}
-            className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-right hover:border-amber-500 active:scale-95 transition-all shadow-sm"
-          >
-            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2">
-              <DollarSign size={18} />
-            </div>
-            <div className="font-bold text-xs text-slate-800 dark:text-slate-200">شهریه</div>
-            <div className="text-[10px] text-slate-400">واریز و پیگیری</div>
-          </button>
-
-          <button
-            onClick={() => onNavigate('reports')}
-            className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-right hover:border-purple-500 active:scale-95 transition-all shadow-sm"
-          >
-            <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-2">
-              <Sparkles size={18} />
-            </div>
-            <div className="font-bold text-xs text-slate-800 dark:text-slate-200">گزارش حامی</div>
-            <div className="text-[10px] text-slate-400">پیام‌ها و خروجی</div>
-          </button>
-
-          <button
-            onClick={() => onNavigate('members')}
-            className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-right hover:border-blue-500 active:scale-95 transition-all shadow-sm"
-          >
-            <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center mb-2">
-              <Users size={18} />
-            </div>
-            <div className="font-bold text-xs text-slate-800 dark:text-slate-200">اعضا</div>
-            <div className="text-[10px] text-slate-400">{toFa(totalMembers)} نفر</div>
-          </button>
-
-          <button
-            onClick={() => onNavigate('homework')}
-            className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-right hover:border-indigo-500 active:scale-95 transition-all shadow-sm"
-          >
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2">
-              <FileText size={18} />
-            </div>
-            <div className="font-bold text-xs text-slate-800 dark:text-slate-200">تکالیف</div>
-            <div className="text-[10px] text-slate-400">آرشیو و ثبت</div>
-          </button>
+        <h3 className="text-xs font-bold text-muted px-1 mb-2">دسترسی سریع</h3>
+        <div className="grid grid-cols-3 gap-2">
+          {quickLinks.map((q) => {
+            const Icon = q.icon;
+            return (
+              <button
+                key={q.id}
+                onClick={() => onNavigate(q.id)}
+                className="rounded-card bg-surface border border-line p-3 text-start transition-all hover:border-accent/40 active:scale-[0.98]"
+              >
+                <span
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2.5 ${toneClass[q.tone]}`}
+                >
+                  <Icon size={17} />
+                </span>
+                <span className="block text-xs font-bold text-ink leading-5">{q.label}</span>
+                <span className="block text-[10px] text-muted leading-4">{q.hint}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Period & Coordinator Summary Card */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">
-            <span>📋</span>
-            <span>{state.period.title || 'دوره جاری'}</span>
-          </h3>
-          <button
-            onClick={() => onNavigate('period')}
-            className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline"
-          >
-            تنظیم دوره
-          </button>
+      {/* Period summary */}
+      <Card>
+        <CardHeader
+          icon={<ClipboardList size={17} />}
+          title={state.period.title || 'دورهٔ جاری'}
+          action={
+            <button
+              onClick={() => onNavigate('period')}
+              className="text-[11px] font-bold text-accent-ink hover:underline inline-flex items-center gap-1"
+            >
+              تنظیم
+              <ArrowLeft size={13} />
+            </button>
+          }
+          className="mb-3"
+        />
+
+        <div className="rounded-field bg-accent/[0.06] border border-accent/15 px-3 py-2.5 text-[11px] text-ink/80 leading-6 mb-3">
+          حامی‌ها اعضای قدیمی هستند که اکنون پشتیبان مسئولان جدید و رابط با درمانگرند.
         </div>
 
-        <div className="p-3 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 text-xs text-blue-900 dark:text-blue-300 leading-relaxed mb-3">
-          🤝 <b>حامی‌ها</b> اعضای قدیمی هستند که قبلاً مسئولیت داشته‌اند و اکنون پشتیبان مسئولان جدید و رابط با درمانگر می‌باشند.
-        </div>
-
-        <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
-          <div>
-            <b className="text-slate-800 dark:text-slate-200">مسئولان حضور: </b>
-            {Array.isArray(state?.period?.attendIds) && state.period.attendIds.length > 0
-              ? state.period.attendIds
-                  .map((id) => safeMembers.find((m) => m.id === id)?.name)
-                  .filter(Boolean)
-                  .join('، ')
-              : 'هنوز تعیین نشده'}
-          </div>
-          <div>
-            <b className="text-slate-800 dark:text-slate-200">مسئولان شهریه: </b>
-            {Array.isArray(state?.period?.feeIds) && state.period.feeIds.length > 0
-              ? state.period.feeIds
-                  .map((id) => safeMembers.find((m) => m.id === id)?.name)
-                  .filter(Boolean)
-                  .join('، ')
-              : 'هنوز تعیین نشده'}
-          </div>
-          <div>
-            <b className="text-slate-800 dark:text-slate-200">مسئول تکالیف: </b>
-            {Array.isArray(state?.period?.hwIds) && state.period.hwIds.length > 0
-              ? state.period.hwIds
-                  .map((id) => safeMembers.find((m) => m.id === id)?.name)
-                  .filter(Boolean)
-                  .join('، ')
-              : 'هنوز تعیین نشده'}
-          </div>
-        </div>
-      </div>
+        <dl className="space-y-2 text-xs">
+          {[
+            { label: 'مسئولان حضور', ids: state.period.attendIds },
+            { label: 'مسئولان شهریه', ids: state.period.feeIds },
+            { label: 'مسئول تکالیف', ids: state.period.hwIds },
+          ].map((row) => {
+            const names = (Array.isArray(row.ids) ? row.ids : [])
+              .map((id) => safeMembers.find((m) => m.id === id)?.name)
+              .filter(Boolean)
+              .join('، ');
+            return (
+              <div key={row.label} className="flex gap-2 leading-6">
+                <dt className="font-bold text-ink shrink-0">{row.label}:</dt>
+                <dd className={`min-w-0 ${names ? 'text-ink/80' : 'text-muted'}`}>
+                  {names || 'تعیین نشده'}
+                </dd>
+              </div>
+            );
+          })}
+        </dl>
+      </Card>
     </div>
   );
 };

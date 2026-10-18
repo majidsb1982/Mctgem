@@ -1,12 +1,65 @@
 import React, { useState } from 'react';
-import { Award, Users, CheckCircle2, Save } from 'lucide-react';
+import { Award, Check, Save, Users } from 'lucide-react';
 import { AppState, PeriodData } from '../types';
+import { Button, Card, CardHeader, Field, Input, Textarea } from '../components/ui';
 
 interface PeriodScreenProps {
   state: AppState;
   onUpdateState: (fn: (prev: AppState) => AppState) => void;
   onNavigate: (screen: string) => void;
 }
+
+interface PickerProps {
+  label: string;
+  hint: string;
+  members: AppState['members'];
+  selected: string[];
+  onToggle: (id: string) => void;
+}
+
+const MemberPicker: React.FC<PickerProps> = ({ label, hint, members, selected, onToggle }) => (
+  <div>
+    <div className="flex items-center justify-between mb-2">
+      <span className="text-xs font-bold text-muted">{label}</span>
+      <span className="text-[10px] font-bold text-accent-ink num">
+        {selected.length.toLocaleString('fa-IR')} انتخاب
+      </span>
+    </div>
+    <p className="text-[11px] text-muted mb-2 leading-5">{hint}</p>
+
+    {members.length === 0 ? (
+      <p className="text-xs text-muted py-2">عضوی برای انتخاب وجود ندارد.</p>
+    ) : (
+      <div className="grid grid-cols-2 gap-1.5 max-h-52 overflow-y-auto p-1">
+        {members.map((m) => {
+          const active = selected.includes(m.id);
+          return (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => onToggle(m.id)}
+              aria-pressed={active}
+              className={`flex items-center gap-2 min-h-11 px-2.5 rounded-field border text-start transition-colors ${
+                active
+                  ? 'border-accent/40 bg-accent/[0.08] text-ink'
+                  : 'border-line bg-surface text-muted hover:bg-surface-2'
+              }`}
+            >
+              <span
+                className={`w-5 h-5 shrink-0 rounded-full border flex items-center justify-center ${
+                  active ? 'bg-accent border-accent text-accent-fg' : 'border-line'
+                }`}
+              >
+                {active && <Check size={12} strokeWidth={3} />}
+              </span>
+              <span className="text-xs font-semibold truncate">{m.name}</span>
+            </button>
+          );
+        })}
+      </div>
+    )}
+  </div>
+);
 
 export const PeriodScreen: React.FC<PeriodScreenProps> = ({ state, onUpdateState, onNavigate }) => {
   const [title, setTitle] = useState(state.period.title || 'دوره جاری');
@@ -18,11 +71,7 @@ export const PeriodScreen: React.FC<PeriodScreenProps> = ({ state, onUpdateState
   const hamis = state.members.filter((m) => (m.roles || []).includes('support'));
 
   const togglePick = (id: string, list: string[], setter: (v: string[]) => void) => {
-    if (list.includes(id)) {
-      setter(list.filter((x) => x !== id));
-    } else {
-      setter([...list, id]);
-    }
+    setter(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
   };
 
   const handleSave = () => {
@@ -35,7 +84,6 @@ export const PeriodScreen: React.FC<PeriodScreenProps> = ({ state, onUpdateState
     };
 
     onUpdateState((prev) => {
-      // Lightly sync roles
       const updatedMembers = prev.members.map((m) => {
         const roles = new Set(m.roles || []);
         if (attendIds.includes(m.id)) roles.add('attend');
@@ -44,11 +92,7 @@ export const PeriodScreen: React.FC<PeriodScreenProps> = ({ state, onUpdateState
         return { ...m, roles: Array.from(roles) };
       });
 
-      return {
-        ...prev,
-        period: updatedPeriod,
-        members: updatedMembers,
-      };
+      return { ...prev, period: updatedPeriod, members: updatedMembers };
     });
 
     alert('دوره و مسئولان جدید با موفقیت ذخیره شدند.');
@@ -56,131 +100,81 @@ export const PeriodScreen: React.FC<PeriodScreenProps> = ({ state, onUpdateState
   };
 
   return (
-    <div className="space-y-4 pb-12 animate-fade-in" dir="rtl">
-      <div className="rounded-3xl bg-gradient-to-br from-indigo-600 to-blue-700 text-white p-6 shadow-xl shadow-indigo-600/20">
-        <h2 className="text-lg font-black mb-1">📋 تنظیم دوره و مسئولان کلاس</h2>
-        <p className="text-xs opacity-90 leading-relaxed">
-          با نظر درمانگر در هر دوره مسئولان پیگیری عوض می‌شوند. حامی‌ها همان اعضای قدیمی با نقش «حامی» در مشخصاتشان هستند.
-        </p>
-      </div>
+    <div className="space-y-4 pb-12">
+      <Card>
+        <CardHeader
+          icon={<Award size={17} />}
+          title="دورهٔ جاری"
+          subtitle="در هر دوره، مسئولان پیگیری با نظر درمانگر تغییر می‌کنند."
+          className="mb-4"
+        />
 
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-        <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
-            عنوان دوره:
-          </label>
-          <input
+        <Field label="عنوان دوره">
+          <Input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="مثلاً دوره بهار ۱۴۰۵"
-            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="مثلاً دورهٔ بهار ۱۴۰۵"
           />
-        </div>
+        </Field>
+      </Card>
 
-        {/* Coordinators for Attendance */}
-        <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">
-            📞 مسئولان پیگیری حضور (می‌توانید چند نفر انتخاب کنید):
-          </label>
-          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-            {state.members.map((m) => (
-              <label
-                key={m.id}
-                className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={attendIds.includes(m.id)}
-                  onChange={() => togglePick(m.id, attendIds, setAttendIds)}
-                  className="rounded text-blue-600"
-                />
-                <span>{m.name}</span>
-              </label>
-            ))}
+      <Card>
+        <div className="space-y-5">
+          <MemberPicker
+            label="مسئولان پیگیری حضور"
+            hint="می‌توانید چند نفر را انتخاب کنید."
+            members={state.members}
+            selected={attendIds}
+            onToggle={(id) => togglePick(id, attendIds, setAttendIds)}
+          />
+
+          <div className="border-t border-line pt-4">
+            <MemberPicker
+              label="مسئولان پیگیری شهریه"
+              hint="پیگیری واریزها و تماس با بدهکاران."
+              members={state.members}
+              selected={feeIds}
+              onToggle={(id) => togglePick(id, feeIds, setFeeIds)}
+            />
+          </div>
+
+          <div className="border-t border-line pt-4">
+            <MemberPicker
+              label="مسئول تکالیف"
+              hint="ثبت و ارسال تکلیف هر جلسه."
+              members={state.members}
+              selected={hwIds}
+              onToggle={(id) => togglePick(id, hwIds, setHwIds)}
+            />
           </div>
         </div>
+      </Card>
 
-        {/* Coordinators for Fees */}
-        <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">
-            💰 مسئولان پیگیری شهریه:
-          </label>
-          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-            {state.members.map((m) => (
-              <label
-                key={m.id}
-                className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={feeIds.includes(m.id)}
-                  onChange={() => togglePick(m.id, feeIds, setFeeIds)}
-                  className="rounded text-amber-500"
-                />
-                <span>{m.name}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* Coordinator for Homework */}
-        <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">
-            📋 مسئول تکالیف:
-          </label>
-          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-            {state.members.map((m) => (
-              <label
-                key={m.id}
-                className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={hwIds.includes(m.id)}
-                  onChange={() => togglePick(m.id, hwIds, setHwIds)}
-                  className="rounded text-indigo-600"
-                />
-                <span>{m.name}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* Note */}
-        <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
-            توضیحات و اهداف دوره:
-          </label>
-          <textarea
+      <Card>
+        <Field label="توضیحات و اهداف دوره">
+          <Textarea
             rows={3}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="اهداف ویژه این دوره کلاسی..."
-            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 text-xs text-slate-800 dark:text-slate-100 focus:outline-none"
+            placeholder="اهداف ویژهٔ این دوره…"
           />
-        </div>
+        </Field>
 
-        {/* Supporters summary */}
         {hamis.length > 0 && (
-          <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 text-xs space-y-1">
-            <span className="font-bold text-slate-800 dark:text-slate-200 block">
-              🤝 حامی‌های شناخته‌شده در اعضا:
+          <div className="mt-3 rounded-field bg-surface-2 border border-line px-3 py-2.5">
+            <span className="text-[11px] font-bold text-ink flex items-center gap-1.5 mb-1">
+              <Users size={13} className="text-accent-ink" />
+              حامی‌های شناخته‌شده
             </span>
-            <span className="text-slate-500 dark:text-slate-400">
-              {hamis.map((m) => m.name).join('، ')}
-            </span>
+            <span className="text-[11px] text-muted leading-5">{hamis.map((m) => m.name).join('، ')}</span>
           </div>
         )}
+      </Card>
 
-        <button
-          onClick={handleSave}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 active:scale-95 transition-all"
-        >
-          <Save size={16} />
-          <span>💾 ذخیره دوره و انتصاب مسئولان</span>
-        </button>
-      </div>
+      <Button full size="lg" icon={<Save size={16} />} onClick={handleSave}>
+        ذخیرهٔ دوره و مسئولان
+      </Button>
     </div>
   );
 };
