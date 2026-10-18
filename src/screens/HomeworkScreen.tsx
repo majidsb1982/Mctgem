@@ -1,11 +1,21 @@
 import React, { useState } from 'react';
-import { FileText, Plus, Archive, Search, Trash2, Edit2, Share2, Mic, Calendar } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Share2, Mic, Calendar, BookOpen, Square } from 'lucide-react';
 import { AppState, HomeworkItem, JalaliDate } from '../types';
-import { fmt, fromKey, toKey, today, toFa } from '../utils/jalali';
+import { fmt, fromKey, toKey, today } from '../utils/jalali';
 import { generateUid } from '../utils/storage';
 import { PersianDatePicker } from '../components/PersianDatePicker';
-import { copyToClipboard, shareText } from '../utils/reports';
-import { VoiceRecorder } from '../utils/audio';
+import { shareText } from '../utils/reports';import { VoiceRecorder } from '../utils/audio';
+import {
+  Button,
+  Card,
+  CardHeader,
+  EmptyState,
+  Field,
+  IconButton,
+  Input,
+  SegmentedTabs,
+  Textarea,
+} from '../components/ui';
 
 interface HomeworkScreenProps {
   state: AppState;
@@ -59,18 +69,12 @@ export const HomeworkScreen: React.FC<HomeworkScreenProps> = ({
       audio,
     };
 
-    onUpdateState((prev) => {
-      let updated: HomeworkItem[];
-      if (editingId) {
-        updated = prev.homework.map((h) => (h.id === editingId ? item : h));
-      } else {
-        updated = [item, ...prev.homework];
-      }
-      return {
-        ...prev,
-        homework: updated,
-      };
-    });
+    onUpdateState((prev) => ({
+      ...prev,
+      homework: editingId
+        ? prev.homework.map((h) => (h.id === editingId ? item : h))
+        : [item, ...prev.homework],
+    }));
 
     setText('');
     setAudio(null);
@@ -101,167 +105,139 @@ export const HomeworkScreen: React.FC<HomeworkScreenProps> = ({
   );
 
   return (
-    <div className="space-y-4 pb-12 animate-fade-in" dir="rtl">
-      {/* Tabs */}
-      <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl text-xs font-bold">
-        <button
-          onClick={() => setTab('new')}
-          className={`flex-1 py-2.5 rounded-xl transition-all ${
-            tab === 'new'
-              ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm font-extrabold'
-              : 'text-slate-500'
-          }`}
-        >
-          ➕ {editingId ? 'ویرایش تکلیف' : 'تکلیف جدید'}
-        </button>
-        <button
-          onClick={() => setTab('archive')}
-          className={`flex-1 py-2.5 rounded-xl transition-all ${
-            tab === 'archive'
-              ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm font-extrabold'
-              : 'text-slate-500'
-          }`}
-        >
-          📚 آرشیو تکالیف ({toFa(state.homework.length)})
-        </button>
-      </div>
+    <div className="space-y-4 pb-12">
+      <SegmentedTabs
+        items={[
+          { id: 'new', label: editingId ? 'ویرایش تکلیف' : 'تکلیف جدید' },
+          { id: 'archive', label: 'آرشیو', count: state.homework.length },
+        ]}
+        value={tab}
+        onChange={(v) => setTab(v as 'new' | 'archive')}
+      />
 
       {tab === 'new' ? (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-          <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-base">
-            {editingId ? '✏️ ویرایش تکلیف' : '📚 تکلیف جدید جلسه'}
-          </h3>
+        <Card>
+          <CardHeader
+            icon={<BookOpen size={17} />}
+            title={editingId ? 'ویرایش تکلیف' : 'تکلیف جدید جلسه'}
+            subtitle="متن یا توضیح صوتی تمرین این هفته"
+            className="mb-4"
+          />
 
-          <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
-              تاریخ جلسه مربوطه:
-            </label>
-            <button
-              onClick={() => setShowDatePicker(true)}
-              className="w-full text-right bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between"
-            >
-              <span>{fmt(date)}</span>
-              <Calendar size={16} className="text-slate-400" />
-            </button>
+          <div className="space-y-4">
+            <Field label="تاریخ جلسهٔ مربوطه">
+              <button
+                type="button"
+                onClick={() => setShowDatePicker(true)}
+                className="w-full h-11 text-right bg-surface-2 border border-line rounded-field px-3.5 text-sm font-semibold text-ink flex items-center justify-between"
+              >
+                <span className="num">{fmt(date)}</span>
+                <Calendar size={16} className="text-muted" />
+              </button>
+            </Field>
+
+            <Field label="متن تکلیف و تمرین‌ها">
+              <Textarea
+                rows={5}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="تکلیف این هفته برای اعضای گروه را بنویسید…"
+              />
+            </Field>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant={isRecording ? 'danger' : 'secondary'}
+                icon={isRecording ? <Square size={14} /> : <Mic size={14} />}
+                onClick={isRecording ? stopRecord : startRecord}
+              >
+                {isRecording ? 'توقف ضبط' : 'ضبط صوت'}
+              </Button>
+
+              {audio && (
+                <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                  <audio controls src={audio} className="h-9 flex-1" />
+                  <button
+                    type="button"
+                    onClick={() => setAudio(null)}
+                    className="text-[11px] font-bold text-danger hover:underline shrink-0"
+                  >
+                    حذف
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <Button full size="lg" icon={<Plus size={16} />} onClick={handleSave}>
+              {editingId ? 'ذخیرهٔ تغییرات' : 'ذخیره و انتشار تکلیف'}
+            </Button>
           </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
-              متن تکلیف و تمرین‌ها:
-            </label>
-            <textarea
-              rows={5}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="تکلیف این هفته برای اعضای گروه را بنویسید..."
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-3.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={isRecording ? stopRecord : startRecord}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 ${
-                isRecording
-                  ? 'bg-rose-500 text-white animate-pulse'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200'
-              }`}
-            >
-              <Mic size={14} />
-              <span>{isRecording ? 'توقف ضبط' : '🎙 ضبط صوت تکلیف'}</span>
-            </button>
-
-            {audio && (
-              <div className="flex items-center gap-2">
-                <audio controls src={audio} className="h-8 max-w-45" />
-                <button
-                  type="button"
-                  onClick={() => setAudio(null)}
-                  className="text-xs text-rose-500 font-bold"
-                >
-                  حذف
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="pt-2">
-            <button
-              onClick={handleSave}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3 rounded-2xl text-xs shadow-md shadow-blue-500/20 active:scale-95 transition-all"
-            >
-              💾 ذخیره و انتشار تکلیف
-            </button>
-          </div>
-        </div>
+        </Card>
       ) : (
         <div className="space-y-3">
           <div className="relative">
-            <Search size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input
+            <Search
+              size={17}
+              className="absolute end-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+            />
+            <Input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="جستجو در آرشیو تکالیف..."
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl pr-10 pl-4 py-2.5 text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none"
+              placeholder="جستجو در آرشیو تکالیف…"
+              className="pe-10"
             />
           </div>
 
           {filteredArchive.length === 0 ? (
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200/80 dark:border-slate-800 text-center">
-              <span className="text-3xl block mb-2">📚</span>
-              <p className="font-bold text-sm text-slate-600 dark:text-slate-300">
-                تکلیفی در آرشیو ثبت نشده است.
-              </p>
-            </div>
+            <EmptyState
+              icon={<BookOpen size={22} />}
+              title="تکلیفی در آرشیو نیست"
+              description="با ثبت اولین تکلیف، آرشیو جلسات اینجا ساخته می‌شود."
+              action={
+                <Button size="sm" variant="secondary" onClick={() => setTab('new')}>
+                  ثبت تکلیف
+                </Button>
+              }
+            />
           ) : (
             filteredArchive.map((hw) => (
-              <div
-                key={hw.id}
-                className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-2.5"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold text-blue-600 dark:text-blue-400">
-                    جلسه {fmt(fromKey(hw.key))}
+              <Card key={hw.id} className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-accent-ink num">
+                    جلسهٔ {fmt(fromKey(hw.key))}
                   </span>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => {
-                        shareText(`تکلیف جلسه ${fmt(fromKey(hw.key))}`, hw.text);
-                      }}
-                      className="p-1.5 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      title="ارسال"
+                  <div className="flex items-center gap-0.5">
+                    <IconButton
+                      aria-label="اشتراک‌گذاری تکلیف"
+                      size="sm"
+                      onClick={() => shareText(`تکلیف جلسه ${fmt(fromKey(hw.key))}`, hw.text)}
                     >
                       <Share2 size={15} />
-                    </button>
-                    <button
-                      onClick={() => handleEdit(hw)}
-                      className="p-1.5 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      title="ویرایش"
-                    >
+                    </IconButton>
+                    <IconButton aria-label="ویرایش تکلیف" size="sm" onClick={() => handleEdit(hw)}>
                       <Edit2 size={15} />
-                    </button>
-                    <button
+                    </IconButton>
+                    <IconButton
+                      aria-label="حذف تکلیف"
+                      size="sm"
                       onClick={() => handleDelete(hw.id)}
-                      className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                      title="حذف"
+                      className="text-danger hover:bg-danger/10 hover:text-danger"
                     >
                       <Trash2 size={15} />
-                    </button>
+                    </IconButton>
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
-                  {hw.text}
-                </p>
+                <p className="text-sm text-ink/90 whitespace-pre-wrap leading-7">{hw.text}</p>
 
                 {hw.audio && (
-                  <div className="pt-1">
-                    <audio controls src={hw.audio} className="h-8 w-full" />
+                  <div className="pt-1 border-t border-line">
+                    <audio controls src={hw.audio} className="h-9 w-full mt-2" />
                   </div>
                 )}
-              </div>
+              </Card>
             ))
           )}
         </div>

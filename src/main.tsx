@@ -46,6 +46,15 @@ function mount() {
 
 window.__mctForceMount = mount;
 
+// Register the offline shell only for the production build.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      /* Offline support is optional; the app still works without it. */
+    });
+  });
+}
+
 // Mount immediately as #root is already in the document
 if (document.getElementById('root')) {
   mount();

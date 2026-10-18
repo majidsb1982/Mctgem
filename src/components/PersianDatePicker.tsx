@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { JalaliDate } from '../types';
 import { mLen, dow, toFa, today, MN, DN } from '../utils/jalali';
-import { X, Check } from 'lucide-react';
+import { X, Check, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Button } from './ui';
 
 interface Props {
   initialDate?: JalaliDate | null;
@@ -18,7 +19,10 @@ export const PersianDatePicker: React.FC<Props> = ({
 }) => {
   const currentToday = today();
   const safeInitial =
-    initialDate && typeof initialDate.jy === 'number' && typeof initialDate.jm === 'number' && typeof initialDate.jd === 'number'
+    initialDate &&
+    typeof initialDate.jy === 'number' &&
+    typeof initialDate.jm === 'number' &&
+    typeof initialDate.jd === 'number'
       ? initialDate
       : currentToday;
   const [selected, setSelected] = useState<JalaliDate>(safeInitial);
@@ -29,39 +33,63 @@ export const PersianDatePicker: React.FC<Props> = ({
   const firstDayDow = dow({ jy: year, jm: month, jd: 1 });
 
   const years: number[] = [];
-  for (let y = 1320; y <= 1450; y++) {
-    years.push(y);
-  }
+  for (let y = 1320; y <= 1450; y++) years.push(y);
 
   const daysGrid: (number | null)[] = [];
-  for (let i = 0; i < firstDayDow; i++) {
-    daysGrid.push(null);
-  }
-  for (let d = 1; d <= monthLength; d++) {
-    daysGrid.push(d);
-  }
+  for (let i = 0; i < firstDayDow; i++) daysGrid.push(null);
+  for (let d = 1; d <= monthLength; d++) daysGrid.push(d);
+
+  const shiftMonth = (delta: number) => {
+    let m = month + delta;
+    let y = year;
+    if (m < 1) {
+      m = 12;
+      y -= 1;
+    } else if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+    if (y < 1320 || y > 1450) return;
+    setMonth(m);
+    setYear(y);
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" dir="rtl">
-      <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-2xl border border-slate-200 dark:border-slate-800">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-          <h3 className="font-bold text-slate-800 dark:text-slate-100 text-lg">{title}</h3>
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px] animate-fade-in"
+      dir="rtl"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="w-full max-w-sm bg-surface rounded-card p-4 shadow-2xl border border-line">
+        <div className="flex items-center justify-between pb-3 border-b border-line">
+          <h3 className="font-bold text-ink text-base">{title}</h3>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
+            aria-label="بستن"
+            className="w-9 h-9 rounded-xl text-muted hover:bg-surface-2 hover:text-ink flex items-center justify-center transition-colors"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Year and Month dropdowns */}
-        <div className="grid grid-cols-2 gap-3 my-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">ماه</label>
+        {/* Month navigation */}
+        <div className="flex items-center justify-between gap-2 my-3">
+          <button
+            type="button"
+            onClick={() => shiftMonth(1)}
+            aria-label="ماه بعد"
+            className="w-9 h-9 rounded-xl text-muted hover:bg-surface-2 hover:text-ink flex items-center justify-center"
+          >
+            <ChevronLeft size={18} />
+          </button>
+
+          <div className="flex items-center gap-1.5">
             <select
               value={month}
               onChange={(e) => setMonth(Number(e.target.value))}
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label="ماه"
+              className="h-9 bg-surface-2 border border-line rounded-lg px-2 text-xs font-bold text-ink"
             >
               {MN.map((mName, idx) => (
                 <option key={idx} value={idx + 1}>
@@ -69,13 +97,11 @@ export const PersianDatePicker: React.FC<Props> = ({
                 </option>
               ))}
             </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">سال</label>
             <select
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label="سال"
+              className="h-9 bg-surface-2 border border-line rounded-lg px-2 text-xs font-bold text-ink num"
             >
               {years.map((y) => (
                 <option key={y} value={y}>
@@ -84,10 +110,18 @@ export const PersianDatePicker: React.FC<Props> = ({
               ))}
             </select>
           </div>
+
+          <button
+            type="button"
+            onClick={() => shiftMonth(-1)}
+            aria-label="ماه قبل"
+            className="w-9 h-9 rounded-xl text-muted hover:bg-surface-2 hover:text-ink flex items-center justify-center"
+          >
+            <ChevronRight size={18} />
+          </button>
         </div>
 
-        {/* Week Days Headers */}
-        <div className="grid grid-cols-7 gap-1 text-center font-bold text-xs text-slate-400 dark:text-slate-500 mb-2">
+        <div className="grid grid-cols-7 gap-1 text-center font-bold text-[10px] text-muted mb-1.5">
           {DN.map((dayName, idx) => (
             <div key={idx} className="py-1">
               {dayName.slice(0, 1)}
@@ -95,26 +129,27 @@ export const PersianDatePicker: React.FC<Props> = ({
           ))}
         </div>
 
-        {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1.5 text-center">
+        <div className="grid grid-cols-7 gap-1 text-center">
           {daysGrid.map((dayNum, idx) => {
-            if (dayNum === null) {
-              return <div key={`empty-${idx}`} className="h-9" />;
-            }
-            const isSelected = selected.jy === year && selected.jm === month && selected.jd === dayNum;
-            const isToday = currentToday.jy === year && currentToday.jm === month && currentToday.jd === dayNum;
+            if (dayNum === null) return <div key={`empty-${idx}`} className="h-9" />;
+
+            const isSelected =
+              selected.jy === year && selected.jm === month && selected.jd === dayNum;
+            const isToday =
+              currentToday.jy === year && currentToday.jm === month && currentToday.jd === dayNum;
 
             return (
               <button
                 key={dayNum}
                 type="button"
                 onClick={() => setSelected({ jy: year, jm: month, jd: dayNum })}
-                className={`h-9 w-full rounded-xl text-sm font-bold flex items-center justify-center transition-all ${
+                aria-pressed={isSelected}
+                className={`h-9 w-full rounded-lg text-xs font-bold flex items-center justify-center transition-colors num ${
                   isSelected
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 scale-105'
+                    ? 'bg-accent text-accent-fg shadow-sm'
                     : isToday
-                    ? 'border-2 border-blue-500 text-blue-600 dark:text-blue-400 font-extrabold'
-                    : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200'
+                    ? 'border border-accent text-accent-ink'
+                    : 'text-ink hover:bg-surface-2'
                 }`}
               >
                 {toFa(dayNum)}
@@ -123,26 +158,22 @@ export const PersianDatePicker: React.FC<Props> = ({
           })}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-3 mt-6 pt-3 border-t border-slate-100 dark:border-slate-800">
-          <button
-            type="button"
+        <div className="flex items-center gap-2 mt-5 pt-3 border-t border-line">
+          <Button
+            full
+            icon={<Check size={16} />}
             onClick={() => {
               onSelect(selected);
               onClose();
             }}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 active:scale-95 transition-transform"
           >
-            <Check size={18} />
-            <span>تأیید تاریخ ({toFa(`${selected.jy}/${selected.jm}/${selected.jd}`)})</span>
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95"
-          >
+            <span className="num">
+              تأیید {toFa(`${selected.jy}/${selected.jm}/${selected.jd}`)}
+            </span>
+          </Button>
+          <Button variant="secondary" onClick={onClose}>
             انصراف
-          </button>
+          </Button>
         </div>
       </div>
     </div>

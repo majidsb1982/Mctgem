@@ -4,20 +4,30 @@ import {
   Calendar,
   Clock,
   Palette,
-  Volume2,
   Trash2,
   Download,
   Upload,
   Database,
   Plus,
   RefreshCw,
-  AlertTriangle,
-  Sparkles
+  Sparkles,
+  Users,
+  Check,
 } from 'lucide-react';
 import { AppState, ClassSchedule, ExtraSession, JalaliDate } from '../types';
 import { DN, fmt, fromKey, toFa, toKey, today } from '../utils/jalali';
 import { getStorageStats, pruneOldSessions, saveState } from '../utils/storage';
 import { PersianDatePicker } from '../components/PersianDatePicker';
+import {
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  Field,
+  Input,
+  Select,
+  SegmentedTabs,
+} from '../components/ui';
 
 interface SettingsScreenProps {
   state: AppState;
@@ -25,6 +35,13 @@ interface SettingsScreenProps {
   onResetDemo: () => void;
   onResetToEmpty?: () => void;
 }
+
+const ACCENTS: { id: 'blue' | 'teal' | 'purple' | 'warm'; label: string; color: string }[] = [
+  { id: 'blue', label: 'آبی', color: 'oklch(0.55 0.21 262)' },
+  { id: 'teal', label: 'فیروزه‌ای', color: 'oklch(0.60 0.12 185)' },
+  { id: 'purple', label: 'بنفش', color: 'oklch(0.55 0.22 300)' },
+  { id: 'warm', label: 'گرم', color: 'oklch(0.63 0.16 48)' },
+];
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   state,
@@ -44,16 +61,19 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [newGroupName, setNewGroupName] = useState('');
   const stats = getStorageStats(state);
 
-  const addWeeklyClass = () => {
-    const newClass: ClassSchedule = {
-      dow: newDow,
-      start: newStart,
-      end: newEnd,
-    };
+  const setSetting = <K extends keyof AppState['settings']>(
+    key: K,
+    value: AppState['settings'][K]
+  ) => {
     onUpdateState((prev) => ({
       ...prev,
-      classes: [...prev.classes, newClass],
+      settings: { ...prev.settings, [key]: value },
     }));
+  };
+
+  const addWeeklyClass = () => {
+    const newClass: ClassSchedule = { dow: newDow, start: newStart, end: newEnd };
+    onUpdateState((prev) => ({ ...prev, classes: [...prev.classes, newClass] }));
   };
 
   const removeWeeklyClass = (idx: number) => {
@@ -69,11 +89,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       return;
     }
     const key = toKey(extraDate);
-    const newEx: ExtraSession = {
-      key,
-      start: extraStart,
-      end: extraEnd,
-    };
+    const newEx: ExtraSession = { key, start: extraStart, end: extraEnd };
     onUpdateState((prev) => ({
       ...prev,
       extra: [...prev.extra.filter((x) => x.key !== key), newEx],
@@ -92,10 +108,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     const trimmed = newGroupName.trim();
     if (!trimmed) return;
     if (state.groups.includes(trimmed)) return;
-    onUpdateState((prev) => ({
-      ...prev,
-      groups: [...prev.groups, trimmed],
-    }));
+    onUpdateState((prev) => ({ ...prev, groups: [...prev.groups, trimmed] }));
     setNewGroupName('');
   };
 
@@ -112,8 +125,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     onUpdateState(() => updated);
     alert(
       prunedCount > 0
-        ? `🧹 ${toFa(prunedCount)} جلسه قدیمی با موفقیت پاکسازی شدند.`
-        : 'جلسه‌ای برای پاکسازی وجود ندارد.'
+        ? `${toFa(prunedCount)} جلسه قدیمی پاک‌سازی شد.`
+        : 'جلسه‌ای برای پاک‌سازی وجود ندارد.'
     );
   };
 
@@ -138,7 +151,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         if (parsed && Array.isArray(parsed.members)) {
           saveState(parsed);
           onUpdateState(() => parsed);
-          alert('✅ اطلاعات با موفقیت بازیابی شد.');
+          alert('اطلاعات با موفقیت بازیابی شد.');
         } else {
           alert('فرمت فایل پشتیبان معتبر نیست.');
         }
@@ -151,73 +164,141 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   };
 
   return (
-    <div className="space-y-4 pb-12 animate-fade-in" dir="rtl">
-      {/* Header card */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
-        <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-base flex items-center gap-2">
-          <Settings size={20} className="text-blue-600" />
-          <span>تنظیمات کلاس و برنامه</span>
-        </h3>
-        <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
-            نام کلاس / گروه درمانی:
-          </label>
-          <input
+    <div className="space-y-4 pb-12">
+      {/* Appearance */}
+      <Card>
+        <CardHeader
+          icon={<Palette size={17} />}
+          title="ظاهر برنامه"
+          subtitle="رنگ لهجه، حالت روشن/تیره و اندازهٔ متن"
+          className="mb-4"
+        />
+
+        <div className="space-y-4">
+          <div>
+            <span className="block text-xs font-bold text-muted mb-2">رنگ لهجه</span>
+            <div className="flex items-start gap-3">
+              {ACCENTS.map((a) => {
+                const active = (state.settings.color || 'blue') === a.id;
+                return (
+                  <div key={a.id} className="flex flex-col items-center gap-1.5">
+                    <button
+                      onClick={() => setSetting('color', a.id)}
+                      aria-label={`رنگ ${a.label}`}
+                      aria-pressed={active}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                        active ? 'ring-2 ring-offset-2 ring-offset-surface' : 'opacity-85 hover:opacity-100'
+                      }`}
+                      style={{
+                        backgroundColor: a.color,
+                        boxShadow: active ? `0 6px 16px -6px ${a.color}` : undefined,
+                        ['--tw-ring-color' as any]: a.color,
+                      }}
+                    >
+                      {active && <Check size={17} className="text-white" strokeWidth={3} />}
+                    </button>
+                    <span
+                      className={`text-[10px] font-semibold ${
+                        active ? 'text-ink' : 'text-muted'
+                      }`}
+                    >
+                      {a.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <span className="block text-xs font-bold text-muted mb-2">حالت نمایش</span>
+            <SegmentedTabs
+              items={[
+                { id: 'light', label: 'روشن' },
+                { id: 'dark', label: 'تیره' },
+                { id: 'auto', label: 'خودکار' },
+              ]}
+              value={state.settings.theme || 'auto'}
+              onChange={(v) => setSetting('theme', v as AppState['settings']['theme'])}
+            />
+          </div>
+
+          <div>
+            <span className="block text-xs font-bold text-muted mb-2">اندازهٔ متن</span>
+            <SegmentedTabs
+              items={[
+                { id: 's', label: 'کوچک' },
+                { id: 'm', label: 'متوسط' },
+                { id: 'l', label: 'بزرگ' },
+              ]}
+              value={state.settings.fs || 'm'}
+              onChange={(v) => setSetting('fs', v as AppState['settings']['fs'])}
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* Class identity */}
+      <Card>
+        <CardHeader
+          icon={<Settings size={17} />}
+          title="مشخصات کلاس"
+          subtitle="نامی که در بالای برنامه نمایش داده می‌شود"
+          className="mb-4"
+        />
+        <Field label="نام کلاس / گروه درمانی">
+          <Input
             type="text"
             value={state.settings.className}
-            onChange={(e) =>
-              onUpdateState((prev) => ({
-                ...prev,
-                settings: { ...prev.settings, className: e.target.value },
-              }))
-            }
-            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => setSetting('className', e.target.value)}
+            placeholder="مثلاً گروه درمانی رشد"
           />
-        </div>
-      </div>
+        </Field>
+      </Card>
 
-      {/* Demo Seed Quick Action */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 rounded-3xl p-4 border border-blue-200 dark:border-blue-800/80 flex items-center justify-between">
-        <div>
-          <h4 className="font-extrabold text-sm text-blue-950 dark:text-blue-200 flex items-center gap-1.5">
-            <Sparkles size={16} className="text-blue-600 dark:text-blue-400" />
-            <span>بارگذاری داده‌های نمونه گروه درمانی</span>
-          </h4>
-          <p className="text-xs text-blue-800/80 dark:text-blue-300/80 mt-0.5">
-            شامل ۱۰ عضو واقعی، برنامه کلاسی، فیش‌های واریزی، حضور و تکالیف
-          </p>
+      {/* Demo seed */}
+      <Card className="border-accent/25 bg-accent/[0.04]">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h4 className="font-bold text-sm text-ink flex items-center gap-1.5">
+              <Sparkles size={15} className="text-accent-ink" />
+              داده‌های نمونه
+            </h4>
+            <p className="text-[11px] text-muted mt-1 leading-5">
+              ۱۰ عضو نمونه با برنامه کلاسی، شهریه، حضور و تکالیف برای آشنایی با برنامه.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<RefreshCw size={14} />}
+            onClick={onResetDemo}
+            className="shrink-0"
+          >
+            بارگذاری
+          </Button>
         </div>
-        <button
-          onClick={onResetDemo}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
-        >
-          <RefreshCw size={14} />
-          <span>بارگذاری نمونه</span>
-        </button>
-      </div>
+      </Card>
 
-      {/* Weekly Classes Schedule */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
-        <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">
-          <Calendar size={18} className="text-blue-500" />
-          <span>برنامه هفتگی کلاس‌ها</span>
-        </h3>
+      {/* Weekly schedule */}
+      <Card>
+        <CardHeader icon={<Calendar size={17} />} title="برنامهٔ هفتگی" className="mb-4" />
 
         <div className="space-y-2">
           {state.classes.map((c, idx) => (
             <div
               key={idx}
-              className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60"
+              className="flex items-center justify-between gap-2 p-3 rounded-field bg-surface-2 border border-line"
             >
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                <span>
-                  {DN[c.dow]} — ساعت {toFa(c.start)} تا {toFa(c.end)}
+              <div className="flex items-center gap-2.5 text-xs font-bold text-ink">
+                <span className="w-2 h-2 rounded-full bg-accent" />
+                <span className="num">
+                  {DN[c.dow]} — {toFa(c.start)} تا {toFa(c.end)}
                 </span>
               </div>
               <button
                 onClick={() => removeWeeklyClass(idx)}
-                className="text-rose-500 hover:text-rose-700 text-xs font-bold p-1 rounded-lg"
+                className="text-[11px] font-bold text-danger hover:underline px-1"
               >
                 حذف
               </button>
@@ -225,66 +306,49 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           ))}
         </div>
 
-        {/* Add weekly class row */}
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
-          <span className="text-xs font-bold text-slate-500 block">افزودن کلاس هفتگی جدید:</span>
+        <div className="pt-3 mt-3 border-t border-line space-y-2">
+          <span className="block text-xs font-bold text-muted">افزودن کلاس هفتگی</span>
           <div className="grid grid-cols-3 gap-2">
-            <select
-              value={newDow}
-              onChange={(e) => setNewDow(Number(e.target.value))}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-800 dark:text-slate-200"
-            >
+            <Select value={newDow} onChange={(e) => setNewDow(Number(e.target.value))}>
               {DN.map((d, i) => (
                 <option key={i} value={i}>
                   {d}
                 </option>
               ))}
-            </select>
-            <input
-              type="time"
-              value={newStart}
-              onChange={(e) => setNewStart(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-2 text-xs font-bold text-slate-800 dark:text-slate-200"
-            />
-            <input
-              type="time"
-              value={newEnd}
-              onChange={(e) => setNewEnd(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-2 text-xs font-bold text-slate-800 dark:text-slate-200"
-            />
+            </Select>
+            <Input type="time" value={newStart} onChange={(e) => setNewStart(e.target.value)} />
+            <Input type="time" value={newEnd} onChange={(e) => setNewEnd(e.target.value)} />
           </div>
-          <button
-            onClick={addWeeklyClass}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm"
-          >
-            <Plus size={15} />
-            <span>افزودن به برنامه هفتگی</span>
-          </button>
+          <Button full size="sm" icon={<Plus size={15} />} onClick={addWeeklyClass}>
+            افزودن به برنامه
+          </Button>
         </div>
-      </div>
+      </Card>
 
-      {/* Special / Extra Sessions */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
-        <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">
-          <Clock size={18} className="text-amber-500" />
-          <span>جلسات خاص و جبرانی (با تاریخ مشخص)</span>
-        </h3>
+      {/* Extra sessions */}
+      <Card>
+        <CardHeader
+          icon={<Clock size={17} />}
+          title="جلسات خاص و جبرانی"
+          subtitle="با تاریخ مشخص"
+          className="mb-4"
+        />
 
         <div className="space-y-2">
           {state.extra.length === 0 ? (
-            <p className="text-xs text-slate-400">جلسه خاصی ثبت نشده است.</p>
+            <p className="text-xs text-muted">جلسهٔ خاصی ثبت نشده است.</p>
           ) : (
             state.extra.map((ex, idx) => (
               <div
                 key={idx}
-                className="flex items-center justify-between p-3 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40"
+                className="flex items-center justify-between gap-2 p-3 rounded-field bg-warn/[0.08] border border-warn/20"
               >
-                <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  📅 {fmt(fromKey(ex.key))} — ساعت {toFa(ex.start)} تا {toFa(ex.end)}
+                <div className="text-xs font-bold text-ink num">
+                  {fmt(fromKey(ex.key))} — {toFa(ex.start)} تا {toFa(ex.end)}
                 </div>
                 <button
                   onClick={() => removeExtraSession(idx)}
-                  className="text-rose-500 hover:text-rose-700 text-xs font-bold p-1 rounded-lg"
+                  className="text-[11px] font-bold text-danger hover:underline px-1"
                 >
                   حذف
                 </button>
@@ -293,55 +357,41 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           )}
         </div>
 
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+        <div className="pt-3 mt-3 border-t border-line space-y-2">
           <button
             type="button"
             onClick={() => setShowExtraPicker(true)}
-            className="w-full text-right bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between"
+            className="w-full h-11 text-right bg-surface-2 border border-line rounded-field px-3.5 text-xs font-bold text-ink flex items-center justify-between"
           >
-            <span>{extraDate ? `تاریخ: ${fmt(extraDate)}` : 'انتخاب تاریخ جلسه خاص...'}</span>
-            <Calendar size={15} />
+            <span>{extraDate ? fmt(extraDate) : 'انتخاب تاریخ جلسه…'}</span>
+            <Calendar size={15} className="text-muted" />
           </button>
           <div className="grid grid-cols-2 gap-2">
-            <input
-              type="time"
-              value={extraStart}
-              onChange={(e) => setExtraStart(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-2 text-xs font-bold text-slate-800 dark:text-slate-200"
-            />
-            <input
-              type="time"
-              value={extraEnd}
-              onChange={(e) => setExtraEnd(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-2 text-xs font-bold text-slate-800 dark:text-slate-200"
-            />
+            <Input type="time" value={extraStart} onChange={(e) => setExtraStart(e.target.value)} />
+            <Input type="time" value={extraEnd} onChange={(e) => setExtraEnd(e.target.value)} />
           </div>
-          <button
-            onClick={addExtraSession}
-            className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm"
-          >
-            <Plus size={15} />
-            <span>ثبت جلسه خاص</span>
-          </button>
+          <Button full size="sm" variant="secondary" icon={<Plus size={15} />} onClick={addExtraSession}>
+            ثبت جلسهٔ خاص
+          </Button>
         </div>
-      </div>
+      </Card>
 
-      {/* Groups Manager */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
-        <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-sm">
-          👥 گروه‌بندی اعضا
-        </h3>
-        <div className="flex flex-wrap gap-2">
+      {/* Groups */}
+      <Card>
+        <CardHeader icon={<Users size={17} />} title="گروه‌بندی اعضا" className="mb-3" />
+
+        <div className="flex flex-wrap gap-2 mb-3">
           {state.groups.map((grp) => (
             <span
               key={grp}
-              className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-2 border border-line text-[11px] font-bold text-ink"
             >
-              <span>{grp}</span>
+              {grp}
               {grp !== 'عمومی' && (
                 <button
                   onClick={() => removeGroup(grp)}
-                  className="text-slate-400 hover:text-rose-500"
+                  aria-label={`حذف گروه ${grp}`}
+                  className="text-muted hover:text-danger"
                 >
                   ✕
                 </button>
@@ -349,109 +399,113 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             </span>
           ))}
         </div>
-        <div className="flex items-center gap-2 pt-2">
-          <input
+
+        <div className="flex items-center gap-2">
+          <Input
             type="text"
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
-            placeholder="نام گروه جدید..."
-            className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-none"
+            placeholder="نام گروه جدید…"
+            className="flex-1"
           />
-          <button
-            onClick={addGroup}
-            className="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold"
-          >
+          <Button size="sm" onClick={addGroup} className="shrink-0">
             افزودن
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
-      {/* Storage and Backup */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
-        <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">
-          <Database size={18} className="text-indigo-500" />
-          <span>پشتیبان‌گیری و حافظه</span>
-        </h3>
+      {/* Storage & backup */}
+      <Card>
+        <CardHeader
+          icon={<Database size={17} />}
+          title="پشتیبان‌گیری و حافظه"
+          action={<Badge tone="neutral">{toFa(stats.kb)} کیلوبایت</Badge>}
+          className="mb-4"
+        />
 
-        <div className="space-y-1 text-xs text-slate-600 dark:text-slate-400">
-          <div>
-            حجم اطلاعات: <b>{toFa(stats.kb)} کیلوبایت</b> ({toFa(stats.pct)}٪ ظرفیت مرورگر)
+        <div className="rounded-field bg-surface-2 border border-line px-3.5 py-3 mb-3">
+          <div className="flex items-center justify-between text-[11px] font-semibold text-muted mb-2">
+            <span>مصرف حافظهٔ مرورگر</span>
+            <span className="num">{toFa(stats.pct)}٪</span>
           </div>
-          <div>
-            تعداد جلسات ذخیره‌شده: <b>{toFa(stats.sessions)}</b> جلسه
+          <div className="h-1.5 rounded-full bg-line overflow-hidden">
+            <div
+              className="h-full rounded-full bg-accent transition-all"
+              style={{ width: `${Math.max(2, stats.pct)}%` }}
+            />
           </div>
+          <p className="text-[11px] text-muted mt-2 num">
+            {toFa(stats.sessions)} جلسه ذخیره‌شده · {toFa(stats.members)} عضو
+          </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 pt-2">
-          <button
-            onClick={handleBackup}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm"
-          >
-            <Download size={15} />
-            <span>دریافت فایل پشتیبان</span>
-          </button>
+        <div className="grid grid-cols-2 gap-2">
+          <Button size="sm" icon={<Download size={15} />} onClick={handleBackup}>
+            دریافت پشتیبان
+          </Button>
 
-          <label className="border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800">
+          <label className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-field border border-line bg-surface-2 text-ink text-xs font-bold cursor-pointer hover:bg-line/50 transition-colors">
             <Upload size={15} />
-            <span>بازیابی از فایل</span>
+            بازیابی از فایل
             <input type="file" accept=".json" onChange={handleRestore} className="hidden" />
           </label>
         </div>
 
-        <button
-          onClick={handlePrune}
-          className="w-full border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold py-2 rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800"
-        >
-          🧹 پاکسازی جلسات قدیمی‌تر از ۴۰ جلسه
-        </button>
-      </div>
+        <Button full size="sm" variant="ghost" onClick={handlePrune} className="mt-2">
+          پاک‌سازی جلسات قدیمی‌تر از ۴۰ جلسه
+        </Button>
+      </Card>
 
-      {/* Class Data Management */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
-        <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">
-          <Sparkles size={18} className="text-amber-500" />
-          <span>مدیریت اطلاعات اعضا و نمونه‌ها</span>
-        </h3>
+      {/* Danger zone */}
+      <Card className="border-danger/25">
+        <CardHeader
+          icon={<Trash2 size={17} />}
+          title="مدیریت داده‌ها"
+          subtitle="این اقدامات قابل بازگشت نیستند"
+          className="mb-3"
+        />
 
-        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-          می‌توانید اعضای کلاس را به طور کامل حذف کرده و کلاس خالی داشته باشید، یا نمونه آزمایشی با اعضای فرضی را بارگذاری کنید.
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+        <div className="space-y-2">
           {onResetToEmpty && (
-            <button
+            <Button
+              full
+              size="sm"
+              variant="danger"
+              icon={<Trash2 size={15} />}
               onClick={() => {
-                if (window.confirm('آیا مطمئن هستید؟ تمام اعضا و اطلاعات جلسات پاک شده و کلاس خالی خواهد شد.')) {
+                if (
+                  window.confirm(
+                    'آیا مطمئن هستید؟ تمام اعضا و اطلاعات جلسات پاک شده و کلاس خالی خواهد شد.'
+                  )
+                ) {
                   onResetToEmpty();
                 }
               }}
-              className="bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all"
             >
-              <Trash2 size={15} />
-              <span>شروع با کلاس خالی (حذف اعضا)</span>
-            </button>
+              شروع با کلاس خالی
+            </Button>
           )}
 
-          <button
+          <Button
+            full
+            size="sm"
+            variant="secondary"
+            icon={<RefreshCw size={15} />}
             onClick={() => {
-              if (window.confirm('اعضای نمونه آزمایشی بارگذاری شوند؟')) {
-                onResetDemo();
-              }
+              if (window.confirm('اعضای نمونهٔ آزمایشی بارگذاری شوند؟')) onResetDemo();
             }}
-            className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all"
           >
-            <RefreshCw size={15} />
-            <span>بارگذاری نمونه آزمایشی</span>
-          </button>
+            بارگذاری نمونهٔ آزمایشی
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {showExtraPicker && (
         <PersianDatePicker
           initialDate={extraDate || today()}
           onSelect={(d) => setExtraDate(d)}
           onClose={() => setShowExtraPicker(false)}
-          title="انتخاب تاریخ جلسه خاص"
+          title="انتخاب تاریخ جلسهٔ خاص"
         />
       )}
     </div>

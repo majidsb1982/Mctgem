@@ -15,7 +15,14 @@ import {
   Calendar,
   Shield,
   HelpCircle,
-  Sparkles
+  Sparkles,
+  PhoneCall,
+  Wallet,
+  ClipboardList,
+  HeartHandshake,
+  Check,
+  Square,
+  Cake,
 } from 'lucide-react';
 import { AppState, Member, JalaliDate } from '../types';
 import { fmt, toFa } from '../utils/jalali';
@@ -23,6 +30,18 @@ import { generateUid } from '../utils/storage';
 import { PersianDatePicker } from '../components/PersianDatePicker';
 import { getWhatsAppLink } from '../utils/reports';
 import { VoiceRecorder } from '../utils/audio';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Field,
+  IconButton,
+  Input,
+  Select,
+  Sheet,
+  Textarea,
+} from '../components/ui';
 
 interface MembersScreenProps {
   state: AppState;
@@ -40,18 +59,23 @@ const NEEDS_LIST = [
   ['medical', 'مراقبت دارویی'],
 ];
 
+const ROLES = [
+  { key: 'attend', label: 'پیگیری حضور', icon: PhoneCall },
+  { key: 'fee', label: 'مسئول شهریه', icon: Wallet },
+  { key: 'hw', label: 'مسئول تکالیف', icon: ClipboardList },
+  { key: 'support', label: 'حامی کلاس', icon: HeartHandshake },
+];
+
 export const MembersScreen: React.FC<MembersScreenProps> = ({
   state,
   onUpdateState,
   onResetDemo,
-  onResetToEmpty,
 }) => {
   const [search, setSearch] = useState('');
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
 
-  // Form states
   const [formName, setFormName] = useState('');
   const [formPhones, setFormPhones] = useState<string[]>(['']);
   const [formBirth, setFormBirth] = useState<JalaliDate | null>(null);
@@ -136,30 +160,20 @@ export const MembersScreen: React.FC<MembersScreenProps> = ({
       voice: formVoice,
     };
 
-    onUpdateState((prev) => {
-      let updatedMembers: Member[];
-      if (editingMember) {
-        updatedMembers = prev.members.map((m) =>
-          m.id === editingMember.id ? memberData : m
-        );
-      } else {
-        updatedMembers = [...prev.members, memberData];
-      }
-      return {
-        ...prev,
-        members: updatedMembers,
-      };
-    });
+    onUpdateState((prev) => ({
+      ...prev,
+      members: editingMember
+        ? prev.members.map((m) => (m.id === editingMember.id ? memberData : m))
+        : [...prev.members, memberData],
+    }));
 
     setIsModalOpen(false);
   };
 
   const handleDelete = (id: string, name: string) => {
     if (confirm(`آیا از حذف عضو «${name}» اطمینان دارید؟`)) {
-      onUpdateState((prev) => ({
-        ...prev,
-        members: prev.members.filter((m) => m.id !== id),
-      }));
+      onUpdateState((prev) => ({ ...prev, members: prev.members.filter((m) => m.id !== id) }));
+      setIsModalOpen(false);
     }
   };
 
@@ -210,9 +224,7 @@ export const MembersScreen: React.FC<MembersScreenProps> = ({
   const stopVoice = async () => {
     if (voiceRecorder) {
       const data = await voiceRecorder.stop();
-      if (data) {
-        setFormVoice(data);
-      }
+      if (data) setFormVoice(data);
       setVoiceRecorder(null);
       setIsRecording(false);
     }
@@ -233,7 +245,7 @@ export const MembersScreen: React.FC<MembersScreenProps> = ({
 
     const csvContent =
       'data:text/csv;charset=utf-8,\uFEFF' +
-      rows.map((e) => e.map((x) => `"${x.replace(/"/g, '""')}"`).join(',')).join('\n');
+      rows.map((e) => e.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
@@ -270,10 +282,7 @@ export const MembersScreen: React.FC<MembersScreenProps> = ({
       }
 
       if (newMembers.length > 0) {
-        onUpdateState((prev) => ({
-          ...prev,
-          members: [...prev.members, ...newMembers],
-        }));
+        onUpdateState((prev) => ({ ...prev, members: [...prev.members, ...newMembers] }));
         alert(`${toFa(newMembers.length)} عضو جدید با موفقیت اضافه شدند.`);
       }
     };
@@ -282,531 +291,506 @@ export const MembersScreen: React.FC<MembersScreenProps> = ({
   };
 
   const safeMembers = Array.isArray(state?.members) ? state.members.filter(Boolean) : [];
-  const filteredMembers = safeMembers.filter((m) =>
-    search ? (m.name || '').includes(search) : true
-  );
+  const filteredMembers = safeMembers.filter((m) => (search ? (m.name || '').includes(search) : true));
 
   return (
-    <div className="space-y-4 pb-12 animate-fade-in" dir="rtl">
-      {/* Header card with action */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
-              <Users size={20} />
-            </div>
-            <div>
-              <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-base">
-                فهرست اعضای کلاس ({toFa(state.members.length)} نفر)
-              </h3>
-              <span className="text-xs text-slate-400 font-semibold">
-                مدیریت مشخصات، شماره‌ها و حامی‌ها
-              </span>
+    <div className="space-y-4 pb-12">
+      {/* Toolbar */}
+      <Card>
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="w-9 h-9 rounded-xl bg-accent/10 text-accent-ink flex items-center justify-center shrink-0">
+              <Users size={18} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-ink leading-6">
+                اعضای کلاس
+                <span className="text-muted font-semibold text-xs num"> ({toFa(safeMembers.length)})</span>
+              </p>
+              <p className="text-[11px] text-muted leading-4 truncate">
+                مشخصات، نقش‌ها و راه‌های تماس
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowHelp(!showHelp)}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
-              title="راهنما"
+          <div className="flex items-center gap-1 shrink-0">
+            <IconButton
+              aria-label="راهنمای صفحه اعضا"
+              onClick={() => setShowHelp((v) => !v)}
+              active={showHelp}
             >
               <HelpCircle size={18} />
-            </button>
-            <button
-              onClick={openAddModal}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold px-3.5 py-2.5 rounded-2xl text-xs flex items-center gap-1.5 shadow-md shadow-blue-500/20 active:scale-95 transition-all"
-            >
-              <UserPlus size={16} />
-              <span>افزودن عضو</span>
-            </button>
+            </IconButton>
+            <Button size="sm" icon={<UserPlus size={15} />} onClick={openAddModal}>
+              افزودن
+            </Button>
           </div>
         </div>
 
-        {/* Search & Import/Export */}
-        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <Search size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input
+            <Search
+              size={16}
+              className="absolute start-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+            />
+            <Input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="جستجوی نام عضو..."
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl pr-10 pl-3 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="جستجوی نام…"
+              className="ps-9 h-10 text-xs"
             />
           </div>
 
-          <button
-            onClick={exportCSV}
-            className="border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1"
-          >
-            <FileSpreadsheet size={15} />
-            <span>خروجی</span>
-          </button>
+          <IconButton aria-label="خروجی اکسل اعضا" onClick={exportCSV}>
+            <FileSpreadsheet size={17} />
+          </IconButton>
 
-          <label className="border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1 cursor-pointer">
-            <Upload size={15} />
-            <span>ورود</span>
-            <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
+          <label className="inline-flex items-center justify-center h-11 w-11 rounded-xl text-muted hover:bg-surface-2 hover:text-ink cursor-pointer transition-colors">
+            <Upload size={17} />
+            <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" aria-label="ورود از فایل CSV" />
           </label>
         </div>
 
-        {/* Roles legend */}
-        <div className="flex items-center gap-4 pt-1 text-[11px] font-bold text-slate-500 dark:text-slate-400 flex-wrap">
-          <span className="flex items-center gap-1">📞 پیگیری حضور</span>
-          <span className="flex items-center gap-1">💰 شهریه</span>
-          <span className="flex items-center gap-1">📋 تکالیف</span>
-          <span className="flex items-center gap-1">🤝 حامی کلاس</span>
+        <div className="flex items-center gap-2 mt-3 flex-wrap">
+          {ROLES.map((r) => {
+            const Icon = r.icon;
+            return (
+              <span
+                key={r.key}
+                className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted"
+              >
+                <Icon size={12} className="text-accent-ink" />
+                {r.label}
+              </span>
+            );
+          })}
         </div>
-      </div>
+      </Card>
 
-      {/* Help Banner if toggled */}
       {showHelp && (
-        <div className="p-4 rounded-3xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-xs text-blue-900 dark:text-blue-200 space-y-2 leading-relaxed">
-          <h4 className="font-bold text-sm">💡 راهنمای صفحه اعضا</h4>
-          <ul className="list-disc list-inside space-y-1 opacity-90">
-            <li>برای هر عضو می‌توانید تا ۳ شماره تماس، تاریخ تولد شمسی و نقش‌های کلاسی ثبت کنید.</li>
-            <li>بخش «یادداشت محرمانه» هرگز در خروجی‌ها یا گزارش‌های اشتراک‌گذاری‌شده نمایش داده نمی‌شود.</li>
-            <li>آیکون‌های تماس و واتساپ امکان ارتباط مستقیم را با اعضا فراهم می‌کنند.</li>
+        <Card className="border-accent/25 bg-accent/[0.04]">
+          <h4 className="font-bold text-sm text-ink mb-2">راهنمای صفحه اعضا</h4>
+          <ul className="list-disc list-inside space-y-1.5 text-[11px] text-muted leading-6">
+            <li>برای هر عضو تا ۳ شماره تماس، تاریخ تولد شمسی و نقش‌های کلاسی ثبت کنید.</li>
+            <li>«یادداشت محرمانه» هرگز در گزارش‌ها و خروجی‌ها نمایش داده نمی‌شود.</li>
+            <li>آیکون‌های تماس و واتساپ ارتباط مستقیم با عضو را ممکن می‌کنند.</li>
           </ul>
-        </div>
+        </Card>
       )}
 
-      {/* Members List */}
-      <div className="space-y-2.5">
+      {/* List */}
+      <div className="space-y-2">
         {safeMembers.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200/80 dark:border-slate-800 text-center space-y-4">
-            <span className="text-4xl block mb-1">👥</span>
-            <div>
-              <h3 className="font-extrabold text-base text-slate-800 dark:text-slate-100 mb-1">
-                هنوز هیچ عضوی برای این کلاس ثبت نشده است
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
-                می‌توانید اعضای کلاس را به صورت دستی یا از طریق فایل اکسل/متنی اضافه کنید.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-              <button
-                onClick={openAddModal}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-5 rounded-2xl text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
-              >
-                <UserPlus size={16} />
-                <span>➕ افزودن اولین عضو</span>
-              </button>
-              {onResetDemo && (
-                <button
-                  onClick={onResetDemo}
-                  className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold py-2.5 px-4 rounded-2xl text-xs flex items-center gap-1.5 active:scale-95 transition-all"
-                >
-                  <Sparkles size={14} className="text-amber-500" />
-                  <span>بارگذاری نمونه آزمایشی</span>
-                </button>
-              )}
-            </div>
-          </div>
+          <EmptyState
+            icon={<Users size={22} />}
+            title="هنوز عضوی ثبت نشده است"
+            description="اعضا را دستی اضافه کنید یا از فایل CSV وارد کنید."
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button size="sm" icon={<UserPlus size={15} />} onClick={openAddModal}>
+                  افزودن اولین عضو
+                </Button>
+                {onResetDemo && (
+                  <Button size="sm" variant="secondary" icon={<Sparkles size={14} />} onClick={onResetDemo}>
+                    نمونهٔ آزمایشی
+                  </Button>
+                )}
+              </div>
+            }
+          />
         ) : filteredMembers.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200/80 dark:border-slate-800 text-center">
-            <span className="text-3xl block mb-2">🔍</span>
-            <p className="font-bold text-sm text-slate-600 dark:text-slate-300">
-              عضوی با این مشخصات یافت نشد.
-            </p>
-          </div>
+          <EmptyState icon={<Search size={22} />} title="عضوی با این مشخصات پیدا نشد" />
         ) : (
           filteredMembers.map((member) => {
             const firstPhone = (member.phones || [])[0];
             const extraPhonesCount = (member.phones || []).length - 1;
-            const supporter = member.supporterId ? (state?.members || []).find((x) => x.id === member.supporterId) : null;
+            const supporter = member.supporterId
+              ? (state?.members || []).find((x) => x.id === member.supporterId)
+              : null;
 
             return (
-              <div
-                key={member.id}
-                className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between gap-3"
-              >
+              <Card key={member.id} padded={false} className="p-3">
                 <div className="flex items-center gap-3">
-                  {/* Photo or Avatar */}
                   {member.photo && member.consentPhoto !== false ? (
                     <img
                       src={member.photo}
                       alt={member.name}
-                      className="w-12 h-12 rounded-2xl object-cover shadow-sm"
+                      className="w-11 h-11 rounded-xl object-cover shrink-0"
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-slate-200 to-slate-100 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center font-black text-slate-700 dark:text-slate-200 text-base shadow-sm">
+                    <div className="w-11 h-11 shrink-0 rounded-xl bg-surface-2 border border-line flex items-center justify-center font-bold text-sm text-ink">
                       {member.name.charAt(0)}
                     </div>
                   )}
 
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-extrabold text-sm text-slate-800 dark:text-slate-100">
-                        {member.name}
-                      </h4>
-                      {/* Roles */}
-                      {(member.roles || []).map((r) => (
-                        <span key={r} className="text-xs" title={r}>
-                          {r === 'attend' ? '📞' : r === 'fee' ? '💰' : r === 'hw' ? '📋' : '🤝'}
-                        </span>
-                      ))}
-                      {member.careFlag && (
-                        <span className="px-1.5 py-0.2 rounded bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 text-[10px] font-bold">
-                          حمایتی
-                        </span>
-                      )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h4 className="font-bold text-sm text-ink truncate">{member.name}</h4>
+                      {member.careFlag && <Badge tone="danger">حمایتی</Badge>}
+                      {(member.roles || []).map((r) => {
+                        const meta = ROLES.find((x) => x.key === r);
+                        if (!meta) return null;
+                        const Icon = meta.icon;
+                        return (
+                          <span
+                            key={r}
+                            title={meta.label}
+                            className="w-5 h-5 rounded-md bg-accent/10 text-accent-ink flex items-center justify-center"
+                          >
+                            <Icon size={12} />
+                          </span>
+                        );
+                      })}
                     </div>
 
-                    <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
+                    <div className="flex items-center gap-2 mt-1 text-[11px] text-muted flex-wrap">
                       {firstPhone ? (
-                        <span className="font-mono">{toFa(firstPhone)}</span>
+                        <span className="num">{toFa(firstPhone)}</span>
                       ) : (
-                        <span className="text-slate-400 text-[11px]">بدون شماره</span>
+                        <span>بدون شماره</span>
                       )}
-                      {extraPhonesCount > 0 && (
-                        <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-1 rounded text-slate-500">
-                          +{toFa(extraPhonesCount)}
-                        </span>
-                      )}
-                      {supporter && (
-                        <span className="text-blue-600 dark:text-blue-400 text-[11px]">
-                          · حامی: {supporter.name}
-                        </span>
-                      )}
+                      {extraPhonesCount > 0 && <span className="num">+{toFa(extraPhonesCount)}</span>}
+                      {supporter && <span>· حامی: {supporter.name}</span>}
                       {member.birth && (
-                        <span className="text-slate-400 text-[11px]">
-                          · 🎂 {fmt(member.birth)}
+                        <span className="inline-flex items-center gap-0.5 num">
+                          <Cake size={11} />
+                          {fmt(member.birth)}
                         </span>
                       )}
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-1.5">
-                  {firstPhone && (
-                    <>
-                      <a
-                        href={`tel:${firstPhone}`}
-                        className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center hover:bg-slate-200"
-                        title="تماس تلفنی"
-                      >
-                        <Phone size={14} />
-                      </a>
-                      <a
-                        href={getWhatsAppLink(firstPhone)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 shadow-sm"
-                        title="ارسال پیام در واتساپ"
-                      >
-                        <MessageCircle size={14} />
-                      </a>
-                    </>
-                  )}
-                  <button
-                    onClick={() => openEditModal(member)}
-                    className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center hover:bg-slate-200"
-                    title="ویرایش"
-                  >
-                    <Edit2 size={14} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(member.id, member.name)}
-                    className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-rose-500 flex items-center justify-center hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                    title="حذف"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    {firstPhone && (
+                      <>
+                        <a
+                          href={`tel:${firstPhone}`}
+                          aria-label={`تماس با ${member.name}`}
+                          className="w-9 h-9 rounded-xl text-success hover:bg-success/10 flex items-center justify-center transition-colors"
+                        >
+                          <Phone size={15} />
+                        </a>
+                        <a
+                          href={getWhatsAppLink(firstPhone)}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={`واتساپ ${member.name}`}
+                          className="w-9 h-9 rounded-xl text-success hover:bg-success/10 flex items-center justify-center transition-colors"
+                        >
+                          <MessageCircle size={15} />
+                        </a>
+                      </>
+                    )}
+                    <IconButton aria-label={`ویرایش ${member.name}`} size="sm" onClick={() => openEditModal(member)}>
+                      <Edit2 size={15} />
+                    </IconButton>
+                  </div>
                 </div>
-              </div>
+              </Card>
             );
           })
         )}
       </div>
 
-      {/* Add / Edit Member Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in overflow-y-auto" dir="rtl">
-          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 my-8">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-base">
-                {editingMember ? '✏️ ویرایش مشخصات عضو' : '＋ افزودن عضو جدید'}
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Photo Avatar Upload */}
-            <div className="flex items-center gap-4">
-              {formPhoto ? (
-                <div className="relative">
-                  <img
-                    src={formPhoto}
-                    alt="عکس عضو"
-                    className="w-16 h-16 rounded-2xl object-cover shadow-sm"
-                  />
-                  <button
-                    onClick={() => setFormPhoto(null)}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center text-xs font-bold"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ) : (
-                <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
-                  <Users size={28} />
-                </div>
-              )}
-
-              <div>
-                <label className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm">
-                  <Camera size={15} />
-                  <span>{formPhoto ? 'تغییر عکس' : 'انتخاب عکس'}</span>
-                  <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
-                </label>
-              </div>
-            </div>
-
-            {/* Name */}
-            <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
-                نام و نام خانوادگی *
-              </label>
-              <input
-                type="text"
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-                placeholder="مثلاً علی رضایی"
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Phone Numbers (up to 3) */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400">
-                شماره‌های تماس (تا ۳ شماره):
-              </label>
-              {formPhones.map((ph, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <input
-                    type="tel"
-                    dir="ltr"
-                    value={ph}
-                    onChange={(e) => {
-                      const updated = [...formPhones];
-                      updated[idx] = e.target.value;
-                      setFormPhones(updated);
-                    }}
-                    placeholder="09123456789"
-                    className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs font-mono font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  {formPhones.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setFormPhones(formPhones.filter((_, i) => i !== idx))}
-                      className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl"
-                    >
-                      <X size={16} />
-                    </button>
-                  )}
-                </div>
-              ))}
-              {formPhones.length < 3 && (
+      {/* Add / edit sheet */}
+      <Sheet
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingMember ? 'ویرایش مشخصات عضو' : 'افزودن عضو جدید'}
+        subtitle="فقط نام الزامی است؛ بقیهٔ موارد اختیاری‌اند."
+        width="lg"
+        footer={
+          <div className="flex items-center gap-2">
+            <Button full onClick={handleSave}>
+              ذخیرهٔ مشخصات
+            </Button>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+              انصراف
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {/* Photo */}
+          <div className="flex items-center gap-3">
+            {formPhoto ? (
+              <div className="relative">
+                <img src={formPhoto} alt="عکس عضو" className="w-16 h-16 rounded-xl object-cover" />
                 <button
-                  type="button"
-                  onClick={() => setFormPhones([...formPhones, ''])}
-                  className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline"
+                  onClick={() => setFormPhoto(null)}
+                  aria-label="حذف عکس"
+                  className="absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full bg-danger text-white flex items-center justify-center"
                 >
-                  ＋ افزودن شماره دیگر
+                  <X size={12} />
                 </button>
-              )}
-            </div>
-
-            {/* Birth Date (Jalali) */}
-            <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
-                تاریخ تولد (شمسی)
-              </label>
-              <button
-                type="button"
-                onClick={() => setShowDatePicker(true)}
-                className="w-full text-right bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between"
-              >
-                <span>{formBirth ? fmt(formBirth) : 'انتخاب تاریخ تولد...'}</span>
-                <Calendar size={16} className="text-slate-400" />
-              </button>
-            </div>
-
-            {/* Roles Selection */}
-            <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">
-                نقش‌ها در کلاس:
-              </label>
-              <div className="grid grid-cols-2 gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
-                {[
-                  ['attend', '📞 پیگیری حضور'],
-                  ['fee', '💰 مسئول شهریه'],
-                  ['hw', '📋 مسئول تکالیف'],
-                  ['support', '🤝 حامی (عضو قدیمی)'],
-                ].map(([rKey, rLabel]) => (
-                  <label key={rKey} className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formRoles.includes(rKey)}
-                      onChange={(e) => {
-                        if (e.target.checked) setFormRoles([...formRoles, rKey]);
-                        else setFormRoles(formRoles.filter((r) => r !== rKey));
-                      }}
-                      className="rounded text-blue-600"
-                    />
-                    <span>{rLabel}</span>
-                  </label>
-                ))}
               </div>
-            </div>
-
-            {/* Special Needs & Care Flag */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400">
-                نیازهای خاص و مراقبت:
-              </label>
-              <div className="grid grid-cols-2 gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-semibold">
-                {NEEDS_LIST.map(([nKey, nLabel]) => (
-                  <label key={nKey} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formNeeds.includes(nKey)}
-                      onChange={(e) => {
-                        if (e.target.checked) setFormNeeds([...formNeeds, nKey]);
-                        else setFormNeeds(formNeeds.filter((n) => n !== nKey));
-                      }}
-                      className="rounded text-blue-600"
-                    />
-                    <span>{nLabel}</span>
-                  </label>
-                ))}
+            ) : (
+              <div className="w-16 h-16 rounded-xl bg-surface-2 border border-line flex items-center justify-center text-muted">
+                <Users size={26} />
               </div>
+            )}
 
-              <label className="flex items-center gap-2 p-2 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-800 dark:text-rose-200 text-xs font-bold cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formCareFlag}
-                  onChange={(e) => setFormCareFlag(e.target.checked)}
-                  className="rounded text-rose-600"
+            <label className="inline-flex items-center gap-1.5 h-10 px-3 rounded-field bg-surface-2 border border-line text-ink text-xs font-bold cursor-pointer hover:bg-line/50 transition-colors">
+              <Camera size={15} />
+              {formPhoto ? 'تغییر عکس' : 'انتخاب عکس'}
+              <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+            </label>
+          </div>
+
+          <Field label="نام و نام خانوادگی *">
+            <Input
+              type="text"
+              value={formName}
+              onChange={(e) => setFormName(e.target.value)}
+              placeholder="مثلاً علی رضایی"
+            />
+          </Field>
+
+          <div className="space-y-2">
+            <span className="block text-xs font-bold text-muted">شماره‌های تماس (تا ۳ شماره)</span>
+            {formPhones.map((ph, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <Input
+                  type="tel"
+                  dir="ltr"
+                  value={ph}
+                  onChange={(e) => {
+                    const updated = [...formPhones];
+                    updated[idx] = e.target.value;
+                    setFormPhones(updated);
+                  }}
+                  placeholder="09123456789"
+                  className="flex-1 text-xs"
                 />
-                <span>علامت «نیازمند حمایت ویژه»</span>
-              </label>
-            </div>
-
-            {/* Supporter */}
-            <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
-                حامی مرتبط (عضو پشتیبان):
-              </label>
-              <select
-                value={formSupporterId}
-                onChange={(e) => setFormSupporterId(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none"
-              >
-                <option value="">— بدون حامی —</option>
-                {state.members
-                  .filter((m) => !editingMember || m.id !== editingMember.id)
-                  .map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-              </select>
-            </div>
-
-            {/* Public Note */}
-            <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
-                یادداشت عمومی
-              </label>
-              <input
-                type="text"
-                value={formNote}
-                onChange={(e) => setFormNote(e.target.value)}
-                placeholder="توضیحات معمولی..."
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none"
-              />
-            </div>
-
-            {/* Confidential Private Note */}
-            <div className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-1">
-              <label className="text-xs font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <Shield size={14} className="text-rose-500" />
-                <span>🔒 یادداشت محرمانه درمانگر</span>
-              </label>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                این یادداشت هرگز در هیچ گزارش حامی، اشتراک‌گذاری یا فایل خروجی نمایش داده نمی‌شود.
-              </p>
-              <textarea
-                value={formPrivateNote}
-                onChange={(e) => setFormPrivateNote(e.target.value)}
-                rows={2}
-                placeholder="شرایط حساس، ترجیحات تماس، نکات خاص..."
-                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none"
-              />
-            </div>
-
-            {/* Voice Note */}
-            <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
-                یادداشت صوتی عضو
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={isRecording ? stopVoice : startVoice}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 ${
-                    isRecording
-                      ? 'bg-rose-500 text-white animate-pulse'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200'
-                  }`}
-                >
-                  <Mic size={14} />
-                  <span>{isRecording ? 'توقف ضبط' : '🎙 ضبط صدا'}</span>
-                </button>
-                {formVoice && (
-                  <div className="flex items-center gap-2">
-                    <audio controls src={formVoice} className="h-8 max-w-45" />
-                    <button
-                      type="button"
-                      onClick={() => setFormVoice(null)}
-                      className="text-xs text-rose-500 font-bold"
-                    >
-                      حذف
-                    </button>
-                  </div>
+                {formPhones.length > 1 && (
+                  <IconButton
+                    aria-label="حذف این شماره"
+                    onClick={() => setFormPhones(formPhones.filter((_, i) => i !== idx))}
+                    className="text-danger hover:bg-danger/10 hover:text-danger"
+                  >
+                    <X size={16} />
+                  </IconButton>
                 )}
               </div>
-            </div>
+            ))}
+            {formPhones.length < 3 && (
+              <button
+                type="button"
+                onClick={() => setFormPhones([...formPhones, ''])}
+                className="text-xs font-bold text-accent-ink hover:underline"
+              >
+                + افزودن شمارهٔ دیگر
+              </button>
+            )}
+          </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={handleSave}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md shadow-blue-500/20 active:scale-95 transition-all"
-              >
-                💾 ذخیره مشخصات عضو
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold text-xs"
-              >
-                انصراف
-              </button>
+          <Field label="تاریخ تولد (شمسی)">
+            <button
+              type="button"
+              onClick={() => setShowDatePicker(true)}
+              className="w-full h-11 text-right bg-surface-2 border border-line rounded-field px-3.5 text-sm font-semibold text-ink flex items-center justify-between"
+            >
+              <span className="num">{formBirth ? fmt(formBirth) : 'انتخاب تاریخ…'}</span>
+              <Calendar size={16} className="text-muted" />
+            </button>
+          </Field>
+
+          {/* Roles */}
+          <div>
+            <span className="block text-xs font-bold text-muted mb-2">نقش‌ها در کلاس</span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {ROLES.map((r) => {
+                const active = formRoles.includes(r.key);
+                const Icon = r.icon;
+                return (
+                  <button
+                    key={r.key}
+                    type="button"
+                    onClick={() =>
+                      setFormRoles(
+                        active ? formRoles.filter((x) => x !== r.key) : [...formRoles, r.key]
+                      )
+                    }
+                    aria-pressed={active}
+                    className={`flex items-center gap-2 min-h-11 px-2.5 rounded-field border text-start transition-colors ${
+                      active
+                        ? 'border-accent/40 bg-accent/[0.08] text-ink'
+                        : 'border-line bg-surface text-muted hover:bg-surface-2'
+                    }`}
+                  >
+                    <Icon size={15} className={active ? 'text-accent-ink' : 'text-muted'} />
+                    <span className="text-[11px] font-semibold truncate">{r.label}</span>
+                    {active && <Check size={13} className="ms-auto text-accent-ink" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Date Picker Modal */}
+          {/* Needs */}
+          <div>
+            <span className="block text-xs font-bold text-muted mb-2">نیازهای خاص و مراقبت</span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {NEEDS_LIST.map(([nKey, nLabel]) => {
+                const active = formNeeds.includes(nKey);
+                return (
+                  <button
+                    key={nKey}
+                    type="button"
+                    onClick={() =>
+                      setFormNeeds(active ? formNeeds.filter((n) => n !== nKey) : [...formNeeds, nKey])
+                    }
+                    aria-pressed={active}
+                    className={`min-h-10 px-2.5 rounded-field border text-[11px] font-semibold transition-colors ${
+                      active
+                        ? 'border-accent/40 bg-accent/[0.08] text-ink'
+                        : 'border-line bg-surface text-muted hover:bg-surface-2'
+                    }`}
+                  >
+                    {nLabel}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setFormCareFlag((v) => !v)}
+              aria-pressed={formCareFlag}
+              className={`w-full mt-2 min-h-11 px-3 rounded-field border flex items-center gap-2 text-xs font-bold transition-colors ${
+                formCareFlag
+                  ? 'border-danger/40 bg-danger/[0.08] text-danger'
+                  : 'border-line bg-surface text-muted'
+              }`}
+            >
+              <span
+                className={`w-5 h-5 rounded-md border flex items-center justify-center ${
+                  formCareFlag ? 'bg-danger border-danger text-white' : 'border-line'
+                }`}
+              >
+                {formCareFlag && <Check size={12} strokeWidth={3} />}
+              </span>
+              نیازمند حمایت ویژه
+            </button>
+          </div>
+
+          <Field label="گروه">
+            <Select value={formGroup} onChange={(e) => setFormGroup(e.target.value)}>
+              {(state.groups || ['عمومی']).map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field label="حامی مرتبط (عضو پشتیبان)">
+            <Select value={formSupporterId} onChange={(e) => setFormSupporterId(e.target.value)}>
+              <option value="">— بدون حامی —</option>
+              {state.members
+                .filter((m) => !editingMember || m.id !== editingMember.id)
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+            </Select>
+          </Field>
+
+          <Field label="یادداشت عمومی">
+            <Input
+              type="text"
+              value={formNote}
+              onChange={(e) => setFormNote(e.target.value)}
+              placeholder="توضیحات معمولی…"
+            />
+          </Field>
+
+          {/* Confidential */}
+          <div className="rounded-field bg-surface-2 border border-line p-3 space-y-1.5">
+            <span className="text-xs font-bold text-ink flex items-center gap-1.5">
+              <Shield size={14} className="text-danger" />
+              یادداشت محرمانهٔ درمانگر
+            </span>
+            <p className="text-[11px] text-muted leading-5">
+              این یادداشت در هیچ گزارش، اشتراک‌گذاری یا فایل خروجی نمایش داده نمی‌شود.
+            </p>
+            <Textarea
+              value={formPrivateNote}
+              onChange={(e) => setFormPrivateNote(e.target.value)}
+              rows={2}
+              placeholder="شرایط حساس، ترجیحات تماس، نکات خاص…"
+              className="text-xs"
+            />
+          </div>
+
+          {/* Voice */}
+          <div>
+            <span className="block text-xs font-bold text-muted mb-2">یادداشت صوتی عضو</span>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant={isRecording ? 'danger' : 'secondary'}
+                icon={isRecording ? <Square size={13} /> : <Mic size={13} />}
+                onClick={isRecording ? stopVoice : startVoice}
+              >
+                {isRecording ? 'توقف ضبط' : 'ضبط صدا'}
+              </Button>
+              {formVoice && (
+                <>
+                  <audio controls src={formVoice} className="h-8 flex-1 min-w-0" />
+                  <button
+                    type="button"
+                    onClick={() => setFormVoice(null)}
+                    className="text-[11px] font-bold text-danger shrink-0"
+                  >
+                    حذف
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setFormConsentContact((v) => !v)}
+              className={`min-h-10 rounded-field border text-[11px] font-semibold ${
+                formConsentContact
+                  ? 'border-success/30 bg-success/[0.07] text-success'
+                  : 'border-line text-muted'
+              }`}
+            >
+              اجازهٔ تماس
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormConsentPhoto((v) => !v)}
+              className={`min-h-10 rounded-field border text-[11px] font-semibold ${
+                formConsentPhoto
+                  ? 'border-success/30 bg-success/[0.07] text-success'
+                  : 'border-line text-muted'
+              }`}
+            >
+              اجازهٔ انتشار عکس
+            </button>
+          </div>
+
+          {editingMember && (
+            <Button
+              full
+              size="sm"
+              variant="danger"
+              icon={<Trash2 size={15} />}
+              onClick={() => handleDelete(editingMember.id, editingMember.name)}
+            >
+              حذف این عضو
+            </Button>
+          )}
+        </div>
+      </Sheet>
+
       {showDatePicker && (
         <PersianDatePicker
           initialDate={formBirth}
