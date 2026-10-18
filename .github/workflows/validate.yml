@@ -10,70 +10,32 @@ permissions:
   contents: read
 
 jobs:
-  static-checks:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Check JavaScript syntax
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Verify PWA assets are published
         run: |
           set -e
-          for file in js/core.js js/pages.js js/features.js js/app.js; do
-            test -f "$file"
-            node --check "$file"
+          for file in dist/index.html dist/manifest.webmanifest dist/icon.svg dist/sw.js; do
+            test -f "$file" || { echo "Missing build output: $file"; exit 1; }
           done
-      - name: Check duplicate static HTML IDs and cache versions
-        run: |
-          node <<'NODE'
-          const fs = require('node:fs');
-          const html = fs.readFileSync('index.html', 'utf8');
-          const sw = fs.readFileSync('sw.js', 'utf8');
-          const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map(m => m[1]);
-          const duplicates = ids.filter((id, i) => ids.indexOf(id) !== i);
-          if (duplicates.length) {
-            console.error('Duplicate static HTML IDs:', [...new Set(duplicates)].join(', '));
-            process.exit(1);
-          }
-          const htmlVersions = [...html.matchAll(/(?:src|href)="[^"]+\?v=(\d+)"/g)].map(m => m[1]);
-          const swVersions = [...sw.matchAll(/\?v=(\d+)/g)].map(m => m[1]);
-          const cache = sw.match(/const C="mct-v(\d+)"/);
-          if (htmlVersions.length && new Set(htmlVersions).size !== 1) {
-            console.error('HTML assets use inconsistent cache-busting versions:', [...new Set(htmlVersions)].join(', '));
-            process.exit(1);
-          }
-          if (cache && htmlVersions.length && cache[1] !== htmlVersions[0]) {
-            console.error('Service worker cache version does not match HTML asset version.');
-            process.exit(1);
-          }
-          if (swVersions.length && htmlVersions.length && swVersions.some(v => v !== htmlVersions[0])) {
-            console.error('Service worker asset versions do not match HTML.');
-            process.exit(1);
-          }
-          console.log('Static IDs and cache-busting versions are consistent.');
-          NODE
-      - name: Check local HTML and offline-shell references
-        run: |
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const html = fs.readFileSync('index.html', 'utf8');
-          const sw = fs.readFileSync('sw.js', 'utf8');
-          const htmlRefs = [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)]
-            .map(match => match[1])
-            .filter(ref => !/^(?:[a-z]+:|#|\/\/|data:)/i.test(ref));
-          const shellRefs = [...sw.matchAll(/["'](\.\/?[^"']+)["']/g)]
-            .map(match => match[1])
-            .filter(ref => /^(?:\.\/)?(?:index\.html|css\/|js\/|manifest\.webmanifest|icon\.svg|docs\/)/.test(ref));
-          const missing = [...new Set([...htmlRefs, ...shellRefs])]
-            .map(ref => ref.split(/[?#]/)[0])
-            .filter(ref => ref && !fs.existsSync(path.resolve(ref)));
-          if (missing.length) {
-            console.error('Missing local assets:', [...new Set(missing)].join(', '));
-            process.exit(1);
-          }
-          console.log('Local asset references are present.');
-          NODE
+          test -f dist/fonts/vazirmatn-arabic-wght-normal.woff2
+          echo "PWA assets are present in dist/."
