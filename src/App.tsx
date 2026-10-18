@@ -15,6 +15,13 @@ import { PeriodScreen } from './screens/PeriodScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { MoreScreen } from './screens/MoreScreen';
 
+const THEME_COLOR: Record<string, string> = {
+  blue: '#2f5fe0',
+  teal: '#0f9b8e',
+  purple: '#7c3aed',
+  warm: '#c96a2b',
+};
+
 export const App: React.FC = () => {
   const [state, setState] = useState<AppState>(() => loadState());
   const [currentScreen, setCurrentScreen] = useState<string>('home');
@@ -32,27 +39,41 @@ export const App: React.FC = () => {
     saveState(state);
   }, [state]);
 
-  // Apply dark/light theme to document root
+  // Apply theme, accent and font-size to <html>; keep the browser chrome in sync.
   useEffect(() => {
-    try {
-      const isDark =
-        state.settings.theme === 'dark' ||
-        (state.settings.theme === 'auto' &&
-          typeof window !== 'undefined' &&
-          typeof window.matchMedia === 'function' &&
-          window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const root = document.documentElement;
+    const media =
+      typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+        ? window.matchMedia('(prefers-color-scheme: dark)')
+        : null;
 
-      if (typeof document !== 'undefined') {
-        if (isDark) {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
+    const apply = () => {
+      const pref = state.settings.theme || 'auto';
+      const isDark = pref === 'dark' || (pref !== 'light' && !!media?.matches);
+      root.classList.toggle('dark', isDark);
+
+      const accent = state.settings.color || 'blue';
+      root.dataset.accent = accent;
+      root.dataset.fs = state.settings.fs || 'm';
+
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) {
+        meta.setAttribute('content', isDark ? '#0d1219' : THEME_COLOR[accent] || THEME_COLOR.blue);
       }
-    } catch {
-      // Ignore theme switch errors in restricted environments
+    };
+
+    apply();
+
+    if (state.settings.theme === 'auto' && media) {
+      media.addEventListener?.('change', apply);
+      return () => media.removeEventListener?.('change', apply);
     }
-  }, [state.settings.theme]);
+  }, [state.settings.theme, state.settings.color, state.settings.fs]);
+
+  // Each screen starts at the top.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [currentScreen]);
 
   const toggleFullscreen = () => {
     try {
@@ -94,7 +115,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-blue-500 selection:text-white transition-colors duration-200">
+    <div className="min-h-dvh bg-bg text-ink font-sans transition-colors duration-200">
       <Header
         currentScreen={currentScreen}
         onNavigate={setCurrentScreen}
@@ -104,92 +125,94 @@ export const App: React.FC = () => {
         onToggleFullscreen={toggleFullscreen}
       />
 
-      <main className="max-w-3xl mx-auto px-4 pt-4 pb-24">
-        {currentScreen === 'home' && (
-          <HomeScreen
-            state={state}
-            onNavigate={setCurrentScreen}
-            activeSessionKey={activeSessionKey}
-            onResetDemo={handleResetToDemo}
-            onResetToEmpty={handleResetToEmpty}
-          />
-        )}
+      <main className="max-w-3xl mx-auto px-4 pt-4 pb-28">
+        <div key={currentScreen}>
+          {currentScreen === 'home' && (
+            <HomeScreen
+              state={state}
+              onNavigate={setCurrentScreen}
+              activeSessionKey={activeSessionKey}
+              onResetDemo={handleResetToDemo}
+              onResetToEmpty={handleResetToEmpty}
+            />
+          )}
 
-        {currentScreen === 'attend' && (
-          <AttendScreen
-            state={state}
-            onUpdateState={updateState}
-            onNavigate={setCurrentScreen}
-            activeSessionKey={activeSessionKey}
-            onSelectSession={handleSelectSession}
-          />
-        )}
+          {currentScreen === 'attend' && (
+            <AttendScreen
+              state={state}
+              onUpdateState={updateState}
+              onNavigate={setCurrentScreen}
+              activeSessionKey={activeSessionKey}
+              onSelectSession={handleSelectSession}
+            />
+          )}
 
-        {currentScreen === 'entry' && (
-          <EntryScreen
-            state={state}
-            onUpdateState={updateState}
-            activeSessionKey={activeSessionKey}
-            onNavigate={setCurrentScreen}
-            onSelectSession={handleSelectSession}
-          />
-        )}
+          {currentScreen === 'entry' && (
+            <EntryScreen
+              state={state}
+              onUpdateState={updateState}
+              activeSessionKey={activeSessionKey}
+              onNavigate={setCurrentScreen}
+              onSelectSession={handleSelectSession}
+            />
+          )}
 
-        {currentScreen === 'fees' && (
-          <FeesScreen
-            state={state}
-            onUpdateState={updateState}
-            activeSessionKey={activeSessionKey}
-            onNavigate={setCurrentScreen}
-            onSelectSession={handleSelectSession}
-          />
-        )}
+          {currentScreen === 'fees' && (
+            <FeesScreen
+              state={state}
+              onUpdateState={updateState}
+              activeSessionKey={activeSessionKey}
+              onNavigate={setCurrentScreen}
+              onSelectSession={handleSelectSession}
+            />
+          )}
 
-        {currentScreen === 'members' && (
-          <MembersScreen
-            state={state}
-            onUpdateState={updateState}
-            onResetDemo={handleResetToDemo}
-            onResetToEmpty={handleResetToEmpty}
-          />
-        )}
+          {currentScreen === 'members' && (
+            <MembersScreen
+              state={state}
+              onUpdateState={updateState}
+              onResetDemo={handleResetToDemo}
+              onResetToEmpty={handleResetToEmpty}
+            />
+          )}
 
-        {currentScreen === 'homework' && (
-          <HomeworkScreen
-            state={state}
-            onUpdateState={updateState}
-            activeSessionKey={activeSessionKey}
-          />
-        )}
+          {currentScreen === 'homework' && (
+            <HomeworkScreen
+              state={state}
+              onUpdateState={updateState}
+              activeSessionKey={activeSessionKey}
+            />
+          )}
 
-        {currentScreen === 'reports' && (
-          <ReportsScreen
-            state={state}
-            activeSessionKey={activeSessionKey}
-            onSelectSession={handleSelectSession}
-          />
-        )}
+          {currentScreen === 'reports' && (
+            <ReportsScreen
+              state={state}
+              activeSessionKey={activeSessionKey}
+              onSelectSession={handleSelectSession}
+            />
+          )}
 
-        {currentScreen === 'period' && (
-          <PeriodScreen
-            state={state}
-            onUpdateState={updateState}
-            onNavigate={setCurrentScreen}
-          />
-        )}
+          {currentScreen === 'period' && (
+            <PeriodScreen
+              state={state}
+              onUpdateState={updateState}
+              onNavigate={setCurrentScreen}
+            />
+          )}
 
-        {currentScreen === 'settings' && (
-          <SettingsScreen
-            state={state}
-            onUpdateState={updateState}
-            onResetDemo={handleResetToDemo}
-            onResetToEmpty={handleResetToEmpty}
-          />
-        )}
+          {currentScreen === 'settings' && (
+            <SettingsScreen
+              state={state}
+              onUpdateState={updateState}
+              onResetDemo={handleResetToDemo}
+              onResetToEmpty={handleResetToEmpty}
+            />
+          )}
 
-        {currentScreen === 'more' && (
-          <MoreScreen onNavigate={setCurrentScreen} state={state} />
-        )}
+          {currentScreen === 'more' && (
+            <MoreScreen onNavigate={setCurrentScreen} state={state} />
+          )}
+        </div>
       </main>
 
       <Nav

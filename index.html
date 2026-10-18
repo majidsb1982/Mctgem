@@ -2,32 +2,54 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-  <meta name="theme-color" content="#2563eb">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2f5fe0">
   <meta name="description" content="دستیار گروه درمانی — My-Class-Track">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MCT">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
-  <title>My-Class-Track</title>
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/vazirmatn-arabic-wght-normal.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/vazirmatn-latin-wght-normal.woff2">
+  <title>My-Class-Track — دستیار گروه درمانی</title>
+
   <style>
+    /* Tokens are duplicated here (minimal subset) so the boot screen can be
+       painted with the right theme/accent before the app bundle loads. */
+    :root {
+      --accent: #2f5fe0;
+      --bg: #fafbfc;
+      --surface: #ffffff;
+      --ink: #1b2230;
+      --muted: #5d6779;
+      --line: #e4e7ec;
+    }
+    [data-accent='teal']   { --accent: #0f9b8e; }
+    [data-accent='purple'] { --accent: #7c3aed; }
+    [data-accent='warm']   { --accent: #c96a2b; }
+    .dark {
+      --bg: #0d1219;
+      --surface: #161d27;
+      --ink: #f2f5f9;
+      --muted: #a7b1c0;
+      --line: #2b3542;
+    }
+
+    html, body { margin: 0; padding: 0; }
     body {
-      margin: 0;
-      padding: 0;
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Tahoma', sans-serif;
-      background-color: #f8fafc;
-      color: #0f172a;
+      font-family: 'Vazirmatn', Tahoma, system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background-color: var(--bg);
+      color: var(--ink);
       -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      transition: background-color .2s ease;
     }
-    @media (prefers-color-scheme: dark) {
-      body {
-        background-color: #020617;
-        color: #f8fafc;
-      }
-    }
+
     #boot-loader {
       min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -35,44 +57,83 @@
       direction: rtl;
       text-align: center;
       padding: 24px;
+      gap: 0;
+    }
+    .boot-mark {
+      width: 60px; height: 60px; border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; font-weight: 800; color: #fff;
+      background: var(--accent);
+      box-shadow: 0 12px 28px -10px color-mix(in oklab, var(--accent) 65%, transparent);
+      margin-bottom: 16px;
+    }
+    .boot-title { font-size: 19px; font-weight: 800; color: var(--ink); margin-bottom: 4px; letter-spacing: -0.01em; }
+    .boot-sub { font-size: 13px; font-weight: 600; color: var(--accent); }
+    .boot-bar {
+      width: 120px; height: 3px; border-radius: 999px; margin-top: 22px;
+      background: color-mix(in oklab, var(--muted) 20%, transparent);
+      overflow: hidden;
+    }
+    .boot-bar::after {
+      content: ''; display: block; width: 40%; height: 100%; border-radius: inherit;
+      background: var(--accent);
+      animation: bootSlide 1.1s ease-in-out infinite;
+    }
+    @keyframes bootSlide {
+      0% { transform: translateX(-120%); }
+      100% { transform: translateX(320%); }
+    }
+    #boot-reset-action { display: none; margin-top: 20px; max-width: 280px; }
+    #boot-reset-action button {
+      width: 100%; background: var(--accent); color: #fff; border: none;
+      border-radius: 14px; padding: 12px 16px; font-size: 13px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .boot-bar::after { animation: none; width: 100%; }
     }
   </style>
+
   <script>
-    // Clean up stale service workers that may cache old broken scripts
-    try {
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(regs) {
-          for (var i = 0; i < regs.length; i++) regs[i].unregister();
-        }).catch(function() {});
+    // Apply theme + accent + font size before first paint (no flash).
+    (function () {
+      var root = document.documentElement;
+      try {
+        var raw = localStorage.getItem('mct:data');
+        var settings = raw ? (JSON.parse(raw) || {}).settings || {} : {};
+        var theme = settings.theme || 'auto';
+        var isDark = theme === 'dark' ||
+          (theme !== 'light' && window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (isDark) root.classList.add('dark');
+        root.dataset.accent = settings.color || 'blue';
+        root.dataset.fs = settings.fs || 'm';
+      } catch (e) {
+        root.dataset.accent = 'blue';
       }
-    } catch (e) {}
+    })();
   </script>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased selection:bg-blue-600 selection:text-white">
+<body>
   <div id="root">
     <div id="boot-loader">
-      <div style="width: 58px; height: 58px; border-radius: 20px; background: linear-gradient(135deg, #2563eb, #6366f1); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 900; margin-bottom: 14px; box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4);">
-        M
-      </div>
-      <div style="font-size: 20px; font-weight: 800; color: #1e293b; margin-bottom: 4px;">
-        My-Class-Track
-      </div>
-      <div style="font-size: 13px; font-weight: 600; color: #2563eb;">
-        دستیار گروه درمانی
-      </div>
-      <div id="boot-reset-action" style="display: none; margin-top: 20px; max-width: 280px;">
-        <button onclick="try{localStorage.clear();sessionStorage.clear();}catch(e){}location.reload();" style="width:100%; background:#2563eb; color:#fff; border:none; border-radius:14px; padding:11px 16px; font-size:13px; font-weight:bold; cursor:pointer; font-family:inherit; box-shadow:0 4px 14px rgba(37,99,235,0.35);">
-          🔄 پاکسازی حافظه و شروع تازه
+      <div class="boot-mark">M</div>
+      <div class="boot-title">My-Class-Track</div>
+      <div class="boot-sub">دستیار گروه درمانی</div>
+      <div class="boot-bar"></div>
+      <div id="boot-reset-action">
+        <button onclick="try{localStorage.clear();sessionStorage.clear();}catch(e){}location.reload();">
+          پاک‌سازی حافظه و شروع تازه
         </button>
       </div>
     </div>
   </div>
 
   <script>
-    setTimeout(function() {
+    setTimeout(function () {
       var btn = document.getElementById('boot-reset-action');
       if (btn) btn.style.display = 'block';
-    }, 2000);
+    }, 4000);
   </script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
